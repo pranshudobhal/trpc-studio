@@ -1,0 +1,29 @@
+{
+  "name": "@trpc-studio/next",
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rimraf dist || rm -rf dist",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit"
+  },
+  "peerDependencies": {
+    "next": "^14.0.0",
+    "@trpc/server": "^10.0.0",
+    "@trpc-studio/core": "0.1.0",
+    "@trpc-studio/ui": "0.1.0"
+  },
+  "dependencies": {}
+}
