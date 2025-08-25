@@ -46,10 +46,6 @@ packages/
   express/     # Express adapter
 examples/
   next-app/    # Minimal Next.js demo app
-docs/
-  requirements.md
-  design.md
-  tasks.md
 ```
 
 ## Contributing
