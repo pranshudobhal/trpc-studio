@@ -1,4 +1,2 @@
-// Custom hooks placeholder
-export function useStudio() {
-  // Will be implemented in later tasks
-}
+// Custom React hooks for @trpc-studio/ui
+// TODO: Implement custom hooks

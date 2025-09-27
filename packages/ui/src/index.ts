@@ -1,4 +1,2 @@
 // UI exports for @trpc-studio/ui
-export * from './components/index.js';
-export * from './hooks/index.js';
-export * from './lib/index.js';
+// TODO: Export components, hooks, and lib when implemented

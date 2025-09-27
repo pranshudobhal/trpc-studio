@@ -1,4 +1,2 @@
-// Security utilities placeholder
-export function validateToken() {
-  // Will be implemented in later tasks
-}
+// Security utilities for token validation
+// TODO: Implement token validation middleware

@@ -1,4 +1,2 @@
-// Utility functions placeholder
-export function cn() {
-  // Will be implemented in later tasks
-}
+// Utility functions for @trpc-studio/ui
+// TODO: Implement utility functions

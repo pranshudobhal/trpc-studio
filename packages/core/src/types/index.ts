@@ -1,4 +1,4 @@
-// Type definitions placeholder
-export interface RouterIntrospection {
-  // Will be implemented in later tasks
-}
+// Type definitions for @trpc-studio/core
+export * from './router';
+export * from './schema';
+export * from './security';

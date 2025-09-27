@@ -1,4 +1,2 @@
-// Schema conversion utilities placeholder
-export function zodToJsonSchema() {
-  // Will be implemented in later tasks
-}
+// Zod to JSON Schema conversion utilities
+// TODO: Implement schema conversion logic

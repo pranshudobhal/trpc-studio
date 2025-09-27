@@ -1,4 +1,2 @@
-// Introspection utilities placeholder
-export function buildIntrospection() {
-  // Will be implemented in later tasks
-}
+// Router introspection utilities
+// TODO: Implement router walking and analysis logic

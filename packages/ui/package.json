@@ -1,31 +1,28 @@
 {
   "name": "@trpc-studio/ui",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "React UI components for tRPC Studio",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
     },
     "./styles": "./dist/styles/globals.css"
   },
   "files": [
     "dist"
   ],
+  "scripts": {
+    "build": "tsc && tailwindcss -i ./src/styles/globals.css -o ./dist/styles/globals.css --minify",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
   "engines": {
     "node": ">=18.18"
-  },
-  "scripts": {
-    "build": "tsc --build && pnpm exec tailwindcss -i ./src/styles/globals.css -o ./dist/styles/globals.css --minify",
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint src --ext .ts,.tsx",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "clean": "rm -rf dist",
-    "size": "bundlesize"
   },
   "peerDependencies": {
     "react": ">=18",
@@ -33,33 +30,23 @@
   },
   "dependencies": {
     "@trpc-studio/core": "workspace:*",
-    "@radix-ui/react-tabs": "^1.0.0",
-    "@radix-ui/react-dialog": "^1.0.0",
-    "@radix-ui/react-dropdown-menu": "^2.0.0",
-    "@radix-ui/react-scroll-area": "^1.0.0",
-    "@radix-ui/react-tooltip": "^1.0.0",
-    "react-hook-form": "^7.0.0",
-    "@hookform/resolvers": "^3.0.0",
-    "clsx": "^2.0.0",
-    "tailwind-merge": "^2.0.0"
+    "@radix-ui/react-tabs": "^1",
+    "@radix-ui/react-dialog": "^1",
+    "@radix-ui/react-dropdown-menu": "^2",
+    "@radix-ui/react-scroll-area": "^1",
+    "@radix-ui/react-tooltip": "^1",
+    "react-hook-form": "^7",
+    "@hookform/resolvers": "^3",
+    "clsx": "^2",
+    "tailwind-merge": "^2"
   },
   "devDependencies": {
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
     "@types/node": "^20.0.0",
-    "typescript": "^5.0.0",
-    "eslint": "^8.0.0",
-    "vitest": "^1.0.0",
-    "tailwindcss": "^3.4.0",
-    "bundlesize": "^0.18.0"
+    "tailwindcss": "^4",
+    "typescript": "^5.0.0"
   },
-  "bundlesize": [
-    {
-      "path": "./dist/index.js",
-      "maxSize": "300kb",
-      "compression": "gzip"
-    }
-  ],
   "keywords": [
     "trpc",
     "react",
@@ -67,11 +54,10 @@
     "components",
     "tailwind"
   ],
-  "author": "tRPC Studio Team",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/trpc/trpc-studio.git",
+    "url": "https://github.com/trpc-studio/trpc-studio.git",
     "directory": "packages/ui"
   }
 }

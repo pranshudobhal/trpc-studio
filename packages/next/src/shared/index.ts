@@ -1,4 +1,2 @@
-// Shared Next.js utilities placeholder
-export interface StudioOptions {
-  // Will be implemented in later tasks
-}
+// Shared utilities for Next.js adapter
+// TODO: Implement common Next.js utilities

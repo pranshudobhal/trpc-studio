@@ -1,4 +1,2 @@
-// UI components placeholder
-export function StudioApp() {
-  // Will be implemented in later tasks
-}
+// React components for @trpc-studio/ui
+// TODO: Implement UI components

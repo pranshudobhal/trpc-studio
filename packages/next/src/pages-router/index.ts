@@ -1,4 +1,2 @@
-// Pages Router utilities placeholder
-export function createPagesRouterHandler() {
-  // Will be implemented in later tasks
-}
+// Pages Router specific implementation
+// TODO: Implement Pages Router handler
