@@ -1,13 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    // Enable experimental features if needed
+    appDir: true,
   },
-  transpilePackages: [
-    '@trpc-studio/core',
-    '@trpc-studio/ui',
-    '@trpc-studio/next',
-  ],
+  transpilePackages: ['@trpc-studio/next', '@trpc-studio/core'],
 };
 
-export default nextConfig;
+module.exports = nextConfig;

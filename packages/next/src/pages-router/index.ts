@@ -1,2 +1,3 @@
-// Pages Router specific implementation
-// TODO: Implement Pages Router handler
+// Pages Router exports for Next.js Pages Router
+export * from './handler';
+export * from './ui';
