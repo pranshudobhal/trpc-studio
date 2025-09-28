@@ -1,2 +1,2 @@
-// Custom React hooks for @trpc-studio/ui
-// TODO: Implement custom hooks
+// Custom hooks will be exported here when implemented
+export {};

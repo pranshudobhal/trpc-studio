@@ -16,7 +16,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc && tailwindcss -i ./src/styles/globals.css -o ./dist/styles/globals.css --minify",
+    "build": "tsc && mkdir -p dist/styles && cp src/styles/globals.css dist/styles/globals.css",
     "dev": "tsc --watch",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit"
@@ -35,10 +35,15 @@
     "@radix-ui/react-dropdown-menu": "^2",
     "@radix-ui/react-scroll-area": "^1",
     "@radix-ui/react-tooltip": "^1",
+    "@radix-ui/react-select": "^2",
+    "@radix-ui/react-toggle": "^1",
+    "@radix-ui/react-slot": "^1",
     "react-hook-form": "^7",
     "@hookform/resolvers": "^3",
     "clsx": "^2",
-    "tailwind-merge": "^2"
+    "tailwind-merge": "^2",
+    "class-variance-authority": "^0.7.0",
+    "lucide-react": "^0.263.1"
   },
   "devDependencies": {
     "@types/react": "^18.0.0",
