@@ -7,6 +7,12 @@ import { Toggle } from './ui/toggle';
 import { ScrollArea } from './ui/scroll-area';
 import { Search, ChevronRight, ChevronDown, Filter } from 'lucide-react';
 import { cn } from '../lib/utils';
+import {
+  useKeyboardNavigation,
+  useFocusVisible,
+  useStudioShortcuts,
+} from '../hooks';
+import { generateId, announceToScreenReader, aria } from '../lib/accessibility';
 
 export interface RouterTreeNavigationProps {
   routers: RouterNode[];
@@ -39,6 +45,14 @@ export function RouterTreeNavigation({
   const [expandedRouters, setExpandedRouters] = React.useState<Set<string>>(
     new Set()
   );
+
+  // Accessibility IDs
+  const searchInputId = React.useMemo(() => generateId('search-input'), []);
+  const treeId = React.useMemo(() => generateId('router-tree'), []);
+  const filtersId = React.useMemo(() => generateId('filters'), []);
+
+  // Search input ref for focus management
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
 
   // Extract all unique tags from procedures
   const allTags = React.useMemo(() => {
@@ -148,6 +162,7 @@ export function RouterTreeNavigation({
       hideDeprecated: false,
       hideInternal: false,
     });
+    announceToScreenReader('Filters cleared');
   };
 
   const hasActiveFilters =
@@ -156,30 +171,67 @@ export function RouterTreeNavigation({
     filters.hideDeprecated ||
     filters.hideInternal;
 
+  // Keyboard shortcuts
+  useStudioShortcuts({
+    onFocusSearch: () => {
+      searchInputRef.current?.focus();
+    },
+  });
+
   return (
-    <div className="flex flex-col h-full">
+    <nav
+      className="flex flex-col h-full"
+      role="navigation"
+      aria-label="tRPC Router Navigation"
+    >
       {/* Search and Filters Header */}
-      <div className="p-4 border-b border-border space-y-3">
+      <div className="p-4 border-b border-border space-y-3" role="search">
         {/* Search Input */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search procedures..."
-            value={filters.searchQuery}
-            onChange={e =>
-              setFilters(prev => ({ ...prev, searchQuery: e.target.value }))
-            }
-            className="pl-10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          <Search
+            className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground"
+            aria-hidden="true"
           />
+          <Input
+            ref={searchInputRef}
+            id={searchInputId}
+            placeholder="Search procedures... (Press / to focus)"
+            value={filters.searchQuery}
+            onChange={e => {
+              const value = e.target.value;
+              setFilters(prev => ({ ...prev, searchQuery: value }));
+              if (value) {
+                announceToScreenReader(`Searching for ${value}`, 'polite');
+              }
+            }}
+            className="pl-10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            aria-label="Search procedures"
+            aria-describedby={`${searchInputId}-help`}
+          />
+          <div id={`${searchInputId}-help`} className="sr-only">
+            Type to search through available procedures. Use arrow keys to
+            navigate results.
+          </div>
         </div>
 
         {/* Filter Toggles */}
-        <div className="flex flex-wrap gap-2">
+        <fieldset
+          className="flex flex-wrap gap-2"
+          aria-labelledby={`${filtersId}-legend`}
+        >
+          <legend id={`${filtersId}-legend`} className="sr-only">
+            Filter options
+          </legend>
           <Toggle
             pressed={filters.hideDeprecated}
-            onPressedChange={pressed =>
-              setFilters(prev => ({ ...prev, hideDeprecated: pressed }))
-            }
+            onPressedChange={pressed => {
+              setFilters(prev => ({ ...prev, hideDeprecated: pressed }));
+              announceToScreenReader(
+                pressed
+                  ? 'Deprecated procedures hidden'
+                  : 'Deprecated procedures shown'
+              );
+            }}
             size="sm"
             className="text-xs"
           >
@@ -187,43 +239,68 @@ export function RouterTreeNavigation({
           </Toggle>
           <Toggle
             pressed={filters.hideInternal}
-            onPressedChange={pressed =>
-              setFilters(prev => ({ ...prev, hideInternal: pressed }))
-            }
+            onPressedChange={pressed => {
+              setFilters(prev => ({ ...prev, hideInternal: pressed }));
+              announceToScreenReader(
+                pressed
+                  ? 'Internal procedures hidden'
+                  : 'Internal procedures shown'
+              );
+            }}
             size="sm"
             className="text-xs"
           >
             Hide Internal
           </Toggle>
-        </div>
+        </fieldset>
 
         {/* Tag Filters */}
         {allTags.length > 0 && (
-          <div className="space-y-2">
+          <div
+            className="space-y-2"
+            role="group"
+            aria-labelledby={`${filtersId}-tags-label`}
+          >
             <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Filter by tags:</span>
+              <Filter
+                className="h-4 w-4 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <span
+                id={`${filtersId}-tags-label`}
+                className="text-sm font-medium"
+              >
+                Filter by tags:
+              </span>
             </div>
-            <div className="flex flex-wrap gap-1">
-              {allTags.map(tag => (
-                <Badge
-                  key={tag}
-                  variant={
-                    filters.selectedTags.includes(tag) ? 'default' : 'outline'
-                  }
-                  className="cursor-pointer text-xs hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  onClick={() => toggleTag(tag)}
-                  tabIndex={0}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      toggleTag(tag);
-                    }
-                  }}
-                >
-                  {tag}
-                </Badge>
-              ))}
+            <div
+              className="flex flex-wrap gap-1"
+              role="group"
+              aria-label="Tag filters"
+            >
+              {allTags.map(tag => {
+                const isSelected = filters.selectedTags.includes(tag);
+                return (
+                  <Badge
+                    key={tag}
+                    variant={isSelected ? 'default' : 'outline'}
+                    className="cursor-pointer text-xs hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    onClick={() => toggleTag(tag)}
+                    tabIndex={0}
+                    role="button"
+                    aria-pressed={isSelected}
+                    aria-label={`${isSelected ? 'Remove' : 'Add'} ${tag} filter`}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleTag(tag);
+                      }
+                    }}
+                  >
+                    {tag}
+                  </Badge>
+                );
+              })}
             </div>
           </div>
         )}
@@ -245,7 +322,7 @@ export function RouterTreeNavigation({
       <ScrollArea className="flex-1">
         <div className="p-2">
           {filteredRouters.length === 0 ? (
-            <div className="text-center py-8">
+            <div className="text-center py-8" role="status" aria-live="polite">
               <p className="text-muted-foreground text-sm">
                 {hasActiveFilters
                   ? 'No procedures match your filters'
@@ -253,18 +330,30 @@ export function RouterTreeNavigation({
               </p>
             </div>
           ) : (
-            <RouterTreeNode
-              routers={filteredRouters}
-              expandedRouters={expandedRouters}
-              onToggleRouter={toggleRouter}
-              onProcedureSelect={onProcedureSelect}
-              selectedProcedure={selectedProcedure}
-              level={0}
-            />
+            <div
+              id={treeId}
+              role="tree"
+              aria-label="tRPC Router and Procedures"
+              aria-describedby={`${treeId}-help`}
+            >
+              <div id={`${treeId}-help`} className="sr-only">
+                Use arrow keys to navigate, Enter or Space to select, and
+                Left/Right to expand/collapse routers.
+              </div>
+              <RouterTreeNode
+                routers={filteredRouters}
+                expandedRouters={expandedRouters}
+                onToggleRouter={toggleRouter}
+                onProcedureSelect={onProcedureSelect}
+                selectedProcedure={selectedProcedure}
+                level={0}
+                treeId={treeId}
+              />
+            </div>
           )}
         </div>
       </ScrollArea>
-    </div>
+    </nav>
   );
 }
 
@@ -278,6 +367,7 @@ interface RouterTreeNodeProps {
     procedure: ProcedureNode;
   } | null;
   level: number;
+  treeId: string;
 }
 
 function RouterTreeNode({
@@ -287,10 +377,109 @@ function RouterTreeNode({
   onProcedureSelect,
   selectedProcedure,
   level,
+  treeId,
 }: RouterTreeNodeProps) {
+  // Collect all items (routers and procedures) for keyboard navigation
+  const allItems = React.useMemo(() => {
+    const items: Array<{
+      type: 'router' | 'procedure';
+      router: RouterNode;
+      procedure?: ProcedureNode;
+      id: string;
+    }> = [];
+
+    const collectItems = (routerNodes: RouterNode[], currentLevel: number) => {
+      routerNodes.forEach(router => {
+        const hasChildren =
+          router.children.length > 0 || router.procedures.length > 0;
+
+        if (hasChildren) {
+          items.push({
+            type: 'router',
+            router,
+            id: `router-${router.name}`,
+          });
+        }
+
+        const isExpanded = expandedRouters.has(router.name);
+        if (isExpanded) {
+          // Add procedures
+          router.procedures.forEach(procedure => {
+            items.push({
+              type: 'procedure',
+              router,
+              procedure,
+              id: `procedure-${router.name}-${procedure.name}`,
+            });
+          });
+
+          // Add child routers
+          collectItems(router.children, currentLevel + 1);
+        }
+      });
+    };
+
+    collectItems(routers, level);
+    return items;
+  }, [routers, expandedRouters, level]);
+
+  // Keyboard navigation
+  const { activeIndex, keyDownHandler, getItemProps } = useKeyboardNavigation(
+    allItems.length,
+    {
+      orientation: 'vertical',
+      enableArrowKeys: true,
+      enableHomeEnd: true,
+      onKeyDown: (event, index) => {
+        const item = allItems[index];
+        if (!item) return;
+
+        switch (event.key) {
+          case 'Enter':
+          case ' ':
+            event.preventDefault();
+            if (item.type === 'router') {
+              onToggleRouter(item.router.name);
+              announceToScreenReader(
+                expandedRouters.has(item.router.name)
+                  ? `${item.router.name} router collapsed`
+                  : `${item.router.name} router expanded`
+              );
+            } else if (item.procedure) {
+              onProcedureSelect(item.router, item.procedure);
+              announceToScreenReader(
+                `Selected ${item.procedure.name} procedure`
+              );
+            }
+            break;
+          case 'ArrowRight':
+            if (
+              item.type === 'router' &&
+              !expandedRouters.has(item.router.name)
+            ) {
+              event.preventDefault();
+              onToggleRouter(item.router.name);
+              announceToScreenReader(`${item.router.name} router expanded`);
+            }
+            break;
+          case 'ArrowLeft':
+            if (
+              item.type === 'router' &&
+              expandedRouters.has(item.router.name)
+            ) {
+              event.preventDefault();
+              onToggleRouter(item.router.name);
+              announceToScreenReader(`${item.router.name} router collapsed`);
+            }
+            break;
+        }
+      },
+    }
+  );
+
   return (
-    <div className="space-y-1">
-      {routers.map(router => {
+    <div className="space-y-1" onKeyDown={keyDownHandler}>
+      {routers.map((router, routerIndex) => {
         const isExpanded = expandedRouters.has(router.name);
         const hasChildren =
           router.children.length > 0 || router.procedures.length > 0;
@@ -302,16 +491,33 @@ function RouterTreeNode({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => onToggleRouter(router.name)}
+                onClick={() => {
+                  onToggleRouter(router.name);
+                  announceToScreenReader(
+                    isExpanded
+                      ? `${router.name} router collapsed`
+                      : `${router.name} router expanded`
+                  );
+                }}
                 className={cn(
                   'w-full justify-start text-left font-medium hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                   level > 0 && 'ml-4'
                 )}
+                role="treeitem"
+                aria-expanded={isExpanded}
+                aria-level={level + 1}
+                aria-label={`${router.name} router, ${isExpanded ? 'expanded' : 'collapsed'}`}
+                {...getItemProps(
+                  allItems.findIndex(
+                    item =>
+                      item.type === 'router' && item.router.name === router.name
+                  )
+                )}
               >
                 {isExpanded ? (
-                  <ChevronDown className="h-4 w-4 mr-1" />
+                  <ChevronDown className="h-4 w-4 mr-1" aria-hidden="true" />
                 ) : (
-                  <ChevronRight className="h-4 w-4 mr-1" />
+                  <ChevronRight className="h-4 w-4 mr-1" aria-hidden="true" />
                 )}
                 {router.name}
               </Button>
@@ -319,23 +525,46 @@ function RouterTreeNode({
 
             {/* Router Content */}
             {isExpanded && hasChildren && (
-              <div className="ml-4 space-y-1">
+              <div className="ml-4 space-y-1" role="group">
                 {/* Procedures */}
                 {router.procedures.map(procedure => {
                   const isSelected =
                     selectedProcedure?.router.name === router.name &&
                     selectedProcedure?.procedure.name === procedure.name;
 
+                  const procedureItemIndex = allItems.findIndex(
+                    item =>
+                      item.type === 'procedure' &&
+                      item.router.name === router.name &&
+                      item.procedure?.name === procedure.name
+                  );
+
                   return (
                     <Button
                       key={procedure.name}
                       variant="ghost"
                       size="sm"
-                      onClick={() => onProcedureSelect(router, procedure)}
+                      onClick={() => {
+                        onProcedureSelect(router, procedure);
+                        announceToScreenReader(
+                          `Selected ${procedure.name} ${procedure.type}`
+                        );
+                      }}
                       className={cn(
                         'w-full justify-start text-left hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                         isSelected && 'bg-accent text-accent-foreground'
                       )}
+                      role="treeitem"
+                      aria-level={level + 2}
+                      aria-selected={isSelected}
+                      aria-label={`${procedure.name} ${procedure.type}${
+                        procedure.meta?.deprecated ? ', deprecated' : ''
+                      }${
+                        procedure.meta?.visibility === 'internal'
+                          ? ', internal'
+                          : ''
+                      }`}
+                      {...getItemProps(procedureItemIndex)}
                     >
                       <div className="flex items-center gap-2 w-full">
                         <Badge
@@ -343,6 +572,7 @@ function RouterTreeNode({
                             procedure.type === 'query' ? 'secondary' : 'default'
                           }
                           className="text-xs"
+                          aria-hidden="true"
                         >
                           {procedure.type.toUpperCase()}
                         </Badge>
@@ -351,12 +581,20 @@ function RouterTreeNode({
                         </span>
                         <div className="flex gap-1">
                           {procedure.meta?.deprecated && (
-                            <Badge variant="destructive" className="text-xs">
+                            <Badge
+                              variant="destructive"
+                              className="text-xs"
+                              aria-label="Deprecated"
+                            >
                               Deprecated
                             </Badge>
                           )}
                           {procedure.meta?.visibility === 'internal' && (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge
+                              variant="outline"
+                              className="text-xs"
+                              aria-label="Internal"
+                            >
                               Internal
                             </Badge>
                           )}
@@ -375,6 +613,7 @@ function RouterTreeNode({
                     onProcedureSelect={onProcedureSelect}
                     selectedProcedure={selectedProcedure}
                     level={level + 1}
+                    treeId={treeId}
                   />
                 )}
               </div>

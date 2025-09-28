@@ -2,6 +2,8 @@ import * as React from 'react';
 import { RouterIntrospection } from '@trpc-studio/core';
 import { DocumentationView } from './documentation-view';
 import { cn } from '../lib/utils';
+import { useStudioShortcuts } from '../hooks';
+import { LiveRegionManager } from '../lib/accessibility';
 
 export interface StudioAppProps {
   /**
@@ -35,6 +37,16 @@ export function StudioApp({
     React.useState<RouterIntrospection | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+
+  // Live region manager for screen reader announcements
+  const liveRegionManager = React.useRef<LiveRegionManager | null>(null);
+
+  React.useEffect(() => {
+    liveRegionManager.current = new LiveRegionManager();
+    return () => {
+      liveRegionManager.current?.destroy();
+    };
+  }, []);
 
   React.useEffect(() => {
     const fetchIntrospection = async () => {
@@ -81,9 +93,14 @@ export function StudioApp({
     return (
       <div
         className={cn('flex h-screen items-center justify-center', className)}
+        role="status"
+        aria-live="polite"
       >
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <div
+            className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"
+            aria-hidden="true"
+          ></div>
           <p className="text-muted-foreground">Loading tRPC Studio...</p>
         </div>
       </div>
@@ -94,6 +111,8 @@ export function StudioApp({
     return (
       <div
         className={cn('flex h-screen items-center justify-center', className)}
+        role="alert"
+        aria-live="assertive"
       >
         <div className="text-center max-w-md">
           <div className="text-destructive text-lg font-semibold mb-2">
@@ -103,6 +122,7 @@ export function StudioApp({
           <button
             onClick={() => window.location.reload()}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            aria-label="Retry loading tRPC Studio"
           >
             Retry
           </button>
@@ -115,6 +135,7 @@ export function StudioApp({
     return (
       <div
         className={cn('flex h-screen items-center justify-center', className)}
+        role="status"
       >
         <div className="text-center">
           <p className="text-muted-foreground">No router data available</p>
@@ -125,14 +146,24 @@ export function StudioApp({
 
   return (
     <div className={cn('h-screen flex flex-col bg-background', className)}>
+      {/* Skip to main content link */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md"
+      >
+        Skip to main content
+      </a>
+
       {/* Header */}
-      <header className="border-b border-border px-6 py-4">
+      <header className="border-b border-border px-6 py-4" role="banner">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">tRPC Studio</h1>
             <p className="text-sm text-muted-foreground">
               Generated{' '}
-              {new Date(introspection.meta.generatedAt).toLocaleString()}
+              <time dateTime={introspection.meta.generatedAt}>
+                {new Date(introspection.meta.generatedAt).toLocaleString()}
+              </time>
               {introspection.meta.trpcVersion &&
                 ` • tRPC v${introspection.meta.trpcVersion}`}
               {introspection.meta.transformer &&
@@ -143,13 +174,17 @@ export function StudioApp({
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <main
+        id="main-content"
+        className="flex-1 flex overflow-hidden"
+        role="main"
+      >
         <DocumentationView
           introspection={introspection}
           trpcEndpoint={trpcEndpoint}
           className="flex-1"
         />
-      </div>
+      </main>
     </div>
   );
 }

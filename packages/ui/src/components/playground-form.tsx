@@ -16,6 +16,8 @@ import { Toggle } from './ui/toggle';
 import { JsonViewer } from './json-viewer';
 import { Plus, Minus, Code, FormInput } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useStudioShortcuts, useFocusVisible } from '../hooks';
+import { generateId, announceToScreenReader, aria } from '../lib/accessibility';
 
 export interface PlaygroundFormProps {
   schema: JSONSchema;
@@ -34,6 +36,10 @@ export function PlaygroundForm({
 }: PlaygroundFormProps) {
   const [isJsonMode, setIsJsonMode] = React.useState(false);
   const [jsonValue, setJsonValue] = React.useState('');
+
+  // Accessibility IDs
+  const formId = React.useMemo(() => generateId('playground-form'), []);
+  const modeToggleId = React.useMemo(() => generateId('mode-toggle'), []);
 
   // Convert JSON Schema to Zod schema for validation
   const zodSchema = React.useMemo(() => {
@@ -66,8 +72,24 @@ export function PlaygroundForm({
       const currentValues = form.getValues();
       setJsonValue(JSON.stringify(currentValues, null, 2));
     }
-    setIsJsonMode(!isJsonMode);
+    const newMode = !isJsonMode;
+    setIsJsonMode(newMode);
+    announceToScreenReader(
+      newMode ? 'Switched to JSON mode' : 'Switched to form mode'
+    );
   };
+
+  // Keyboard shortcuts
+  useStudioShortcuts({
+    onToggleJsonMode: toggleMode,
+    onExecuteRequest: () => {
+      if (isJsonMode) {
+        handleJsonSubmit();
+      } else {
+        form.handleSubmit(handleFormSubmit)();
+      }
+    },
+  });
 
   React.useEffect(() => {
     if (defaultValues) {
@@ -76,24 +98,29 @@ export function PlaygroundForm({
   }, [defaultValues]);
 
   return (
-    <div className={cn('space-y-4', className)}>
+    <section
+      className={cn('space-y-4', className)}
+      aria-labelledby={`${formId}-title`}
+    >
       {/* Mode Toggle */}
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Input Parameters</h3>
+        <h3 id={`${formId}-title`} className="text-lg font-semibold">
+          Input Parameters
+        </h3>
         <Toggle
           pressed={isJsonMode}
           onPressedChange={toggleMode}
-          aria-label="Toggle JSON mode"
           className="data-[state=on]:bg-accent"
+          title={`Switch to ${isJsonMode ? 'form' : 'JSON'} mode (Ctrl+J)`}
         >
           {isJsonMode ? (
             <>
-              <FormInput className="h-4 w-4 mr-2" />
+              <FormInput className="h-4 w-4 mr-2" aria-hidden="true" />
               Form Mode
             </>
           ) : (
             <>
-              <Code className="h-4 w-4 mr-2" />
+              <Code className="h-4 w-4 mr-2" aria-hidden="true" />
               JSON Mode
             </>
           )}
@@ -107,11 +134,14 @@ export function PlaygroundForm({
           onSubmit={handleJsonSubmit}
           schema={schema}
           isExecuting={isExecuting}
+          formId={formId}
         />
       ) : (
         <form
+          id={formId}
           onSubmit={form.handleSubmit(handleFormSubmit)}
           className="space-y-4"
+          aria-label="Procedure input form"
         >
           <FormField
             name=""
@@ -119,20 +149,33 @@ export function PlaygroundForm({
             control={form.control}
             register={form.register}
             errors={form.formState.errors}
+            formId={formId}
           />
-          <Button type="submit" className="w-full" disabled={isExecuting}>
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={isExecuting}
+            aria-describedby={`${formId}-submit-help`}
+          >
             {isExecuting ? (
               <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
+                <div
+                  className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"
+                  aria-hidden="true"
+                />
                 Executing...
               </>
             ) : (
-              'Execute Request'
+              'Execute Request (Ctrl+Enter)'
             )}
           </Button>
+          <div id={`${formId}-submit-help`} className="sr-only">
+            Submit the form to execute the tRPC procedure. Use Ctrl+Enter
+            keyboard shortcut.
+          </div>
         </form>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -144,6 +187,7 @@ interface FormFieldProps {
   register: any;
   errors: any;
   level?: number;
+  formId?: string;
 }
 
 function FormField({
@@ -153,6 +197,7 @@ function FormField({
   register,
   errors,
   level = 0,
+  formId = '',
 }: FormFieldProps) {
   // Handle x-zod.unmapped fallback
   if (schema['x-zod']?.unmapped) {
@@ -162,6 +207,7 @@ function FormField({
         schema={schema}
         control={control}
         errors={errors}
+        formId={formId}
       />
     );
   }
@@ -174,6 +220,7 @@ function FormField({
         schema={schema}
         control={control}
         errors={errors}
+        formId={formId}
       />
     );
   }
@@ -188,6 +235,7 @@ function FormField({
         register={register}
         errors={errors}
         level={level}
+        formId={formId}
       />
     );
   }
@@ -201,6 +249,7 @@ function FormField({
           schema={schema}
           register={register}
           errors={errors}
+          formId={formId}
         />
       );
     case 'number':
@@ -211,6 +260,7 @@ function FormField({
           schema={schema}
           register={register}
           errors={errors}
+          formId={formId}
         />
       );
     case 'boolean':
@@ -220,6 +270,7 @@ function FormField({
           schema={schema}
           control={control}
           errors={errors}
+          formId={formId}
         />
       );
     case 'object':
@@ -231,6 +282,7 @@ function FormField({
           register={register}
           errors={errors}
           level={level}
+          formId={formId}
         />
       );
     case 'array':
@@ -242,6 +294,7 @@ function FormField({
           register={register}
           errors={errors}
           level={level}
+          formId={formId}
         />
       );
     default:
@@ -252,20 +305,28 @@ function FormField({
           schema={schema}
           control={control}
           errors={errors}
+          formId={formId}
         />
       );
   }
 }
 
 // String input field
-function StringField({ name, schema, register, errors }: any) {
+function StringField({ name, schema, register, errors, formId = '' }: any) {
   const fieldName = name || 'root';
+  const fieldId = `${formId}-${fieldName}`.replace(/\./g, '-');
   const error = getNestedError(errors, fieldName);
+  const isRequired = schema.required?.includes(fieldName.split('.').pop());
 
   return (
     <div className="space-y-2">
-      <label htmlFor={fieldName} className="text-sm font-medium">
+      <label htmlFor={fieldId} className="text-sm font-medium">
         {schema.title || fieldName}
+        {isRequired && (
+          <span className="text-destructive ml-1" aria-label="required">
+            *
+          </span>
+        )}
         {schema.description && (
           <span className="text-muted-foreground ml-1">
             ({schema.description})
@@ -273,15 +334,26 @@ function StringField({ name, schema, register, errors }: any) {
         )}
       </label>
       <Input
-        id={fieldName}
+        id={fieldId}
         type={getInputType(schema)}
         placeholder={
           (schema.examples?.[0] as string) || (schema.default as string)
         }
         {...register(fieldName)}
         className={error ? 'border-destructive' : ''}
+        aria-invalid={error ? 'true' : 'false'}
+        aria-describedby={error ? `${fieldId}-error` : undefined}
+        aria-required={isRequired}
       />
-      {error && <p className="text-sm text-destructive">{error.message}</p>}
+      {error && (
+        <p
+          id={`${fieldId}-error`}
+          className="text-sm text-destructive"
+          role="alert"
+        >
+          {error.message}
+        </p>
+      )}
     </div>
   );
 }
@@ -648,6 +720,7 @@ interface JsonModeEditorProps {
   schema?: JSONSchema;
   compact?: boolean;
   isExecuting?: boolean;
+  formId?: string;
 }
 
 function JsonModeEditor({
@@ -657,8 +730,10 @@ function JsonModeEditor({
   schema,
   compact = false,
   isExecuting = false,
+  formId = '',
 }: JsonModeEditorProps) {
   const [error, setError] = React.useState<string | null>(null);
+  const textareaId = `${formId}-json-editor`;
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
@@ -675,8 +750,12 @@ function JsonModeEditor({
 
   return (
     <div className="space-y-2">
+      <label htmlFor={textareaId} className="text-sm font-medium">
+        JSON Input
+      </label>
       <div className="relative">
         <textarea
+          id={textareaId}
           value={value}
           onChange={handleChange}
           className={cn(
@@ -686,24 +765,44 @@ function JsonModeEditor({
             compact ? 'min-h-[100px]' : 'min-h-[200px]'
           )}
           placeholder="Enter JSON..."
+          aria-invalid={error ? 'true' : 'false'}
+          aria-describedby={
+            error ? `${textareaId}-error` : `${textareaId}-help`
+          }
         />
       </div>
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      <div id={`${textareaId}-help`} className="sr-only">
+        Enter valid JSON for the procedure input. Use Ctrl+Enter to execute.
+      </div>
+
+      {error && (
+        <p
+          id={`${textareaId}-error`}
+          className="text-sm text-destructive"
+          role="alert"
+        >
+          {error}
+        </p>
+      )}
 
       {onSubmit && (
         <Button
           onClick={onSubmit}
           disabled={!!error || isExecuting}
           className="w-full"
+          aria-describedby={`${formId}-submit-help`}
         >
           {isExecuting ? (
             <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
+              <div
+                className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"
+                aria-hidden="true"
+              />
               Executing...
             </>
           ) : (
-            'Execute Request'
+            'Execute Request (Ctrl+Enter)'
           )}
         </Button>
       )}
