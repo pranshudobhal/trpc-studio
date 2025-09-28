@@ -1,2 +1,4 @@
 // Zod to JSON Schema conversion utilities
-// TODO: Implement schema conversion logic
+
+export { convertZodToJsonSchema, type ConversionOptions } from './converter';
+export type { JSONSchema, SchemaConversionResult } from '../types/schema';

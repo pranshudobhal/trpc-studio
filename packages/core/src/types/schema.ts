@@ -24,11 +24,18 @@ export interface JSONSchema {
   items?: JSONSchema;
   minItems?: number;
   maxItems?: number;
+  uniqueItems?: boolean;
+  additionalItems?: JSONSchema;
 
   // Union/intersection properties
   anyOf?: JSONSchema[];
   oneOf?: JSONSchema[];
   allOf?: JSONSchema[];
+
+  // Discriminator for oneOf
+  discriminator?: {
+    propertyName: string;
+  };
 
   // Enum and const values
   enum?: unknown[];
