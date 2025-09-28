@@ -29,26 +29,27 @@
     "react-dom": ">=18"
   },
   "dependencies": {
-    "@trpc-studio/core": "workspace:*",
-    "@radix-ui/react-tabs": "^1",
+    "@hookform/resolvers": "^3",
     "@radix-ui/react-dialog": "^1",
     "@radix-ui/react-dropdown-menu": "^2",
     "@radix-ui/react-scroll-area": "^1",
-    "@radix-ui/react-tooltip": "^1",
     "@radix-ui/react-select": "^2",
-    "@radix-ui/react-toggle": "^1",
     "@radix-ui/react-slot": "^1",
-    "react-hook-form": "^7",
-    "@hookform/resolvers": "^3",
-    "clsx": "^2",
-    "tailwind-merge": "^2",
+    "@radix-ui/react-tabs": "^1",
+    "@radix-ui/react-toggle": "^1",
+    "@radix-ui/react-tooltip": "^1",
+    "@trpc-studio/core": "workspace:*",
     "class-variance-authority": "^0.7.0",
-    "lucide-react": "^0.263.1"
+    "clsx": "^2",
+    "lucide-react": "^0.263.1",
+    "react-hook-form": "^7",
+    "react-json-view-lite": "^2.5.0",
+    "tailwind-merge": "^2"
   },
   "devDependencies": {
+    "@types/node": "^20.0.0",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
-    "@types/node": "^20.0.0",
     "tailwindcss": "^4",
     "typescript": "^5.0.0"
   },

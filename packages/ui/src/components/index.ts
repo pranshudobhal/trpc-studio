@@ -9,3 +9,12 @@ export * from './ui/scroll-area';
 export * from './ui/tooltip';
 export * from './ui/badge';
 export * from './ui/toggle';
+
+// Studio Components
+export * from './studio-app';
+export * from './documentation-view';
+export * from './router-tree-navigation';
+export * from './procedure-details';
+export * from './schema-display';
+export * from './metadata-display';
+export * from './json-viewer';
