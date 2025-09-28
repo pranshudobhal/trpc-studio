@@ -1,2 +1,3 @@
 // Express route handlers for tRPC Studio
-// TODO: Implement route handlers
+export * from './introspection';
+export * from './static';

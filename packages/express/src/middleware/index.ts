@@ -1,2 +1,2 @@
 // Express middleware for tRPC Studio
-// TODO: Implement Express middleware
+export * from './studio';
