@@ -21,6 +21,7 @@ export interface PlaygroundFormProps {
   schema: JSONSchema;
   onSubmit: (data: unknown) => void;
   defaultValues?: unknown;
+  isExecuting?: boolean;
   className?: string;
 }
 
@@ -28,6 +29,7 @@ export function PlaygroundForm({
   schema,
   onSubmit,
   defaultValues,
+  isExecuting = false,
   className,
 }: PlaygroundFormProps) {
   const [isJsonMode, setIsJsonMode] = React.useState(false);
@@ -104,6 +106,7 @@ export function PlaygroundForm({
           onChange={setJsonValue}
           onSubmit={handleJsonSubmit}
           schema={schema}
+          isExecuting={isExecuting}
         />
       ) : (
         <form
@@ -117,8 +120,15 @@ export function PlaygroundForm({
             register={form.register}
             errors={form.formState.errors}
           />
-          <Button type="submit" className="w-full">
-            Execute Request
+          <Button type="submit" className="w-full" disabled={isExecuting}>
+            {isExecuting ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
+                Executing...
+              </>
+            ) : (
+              'Execute Request'
+            )}
           </Button>
         </form>
       )}
@@ -637,6 +647,7 @@ interface JsonModeEditorProps {
   onSubmit?: () => void;
   schema?: JSONSchema;
   compact?: boolean;
+  isExecuting?: boolean;
 }
 
 function JsonModeEditor({
@@ -645,6 +656,7 @@ function JsonModeEditor({
   onSubmit,
   schema,
   compact = false,
+  isExecuting = false,
 }: JsonModeEditorProps) {
   const [error, setError] = React.useState<string | null>(null);
 
@@ -680,8 +692,19 @@ function JsonModeEditor({
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       {onSubmit && (
-        <Button onClick={onSubmit} disabled={!!error} className="w-full">
-          Execute Request
+        <Button
+          onClick={onSubmit}
+          disabled={!!error || isExecuting}
+          className="w-full"
+        >
+          {isExecuting ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
+              Executing...
+            </>
+          ) : (
+            'Execute Request'
+          )}
         </Button>
       )}
     </div>

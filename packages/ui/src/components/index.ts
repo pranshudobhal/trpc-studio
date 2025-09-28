@@ -9,6 +9,7 @@ export * from './ui/scroll-area';
 export * from './ui/tooltip';
 export * from './ui/badge';
 export * from './ui/toggle';
+export * from './ui/separator';
 
 // Studio Components
 export * from './studio-app';
@@ -19,3 +20,6 @@ export * from './schema-display';
 export * from './metadata-display';
 export * from './json-viewer';
 export * from './playground-form';
+export * from './playground';
+export * from './response-panel';
+export * from './environment-selector';
