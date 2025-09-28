@@ -5,7 +5,7 @@ import {
   ProcedureNode,
 } from '@trpc-studio/core';
 import { RouterTreeNavigation } from './router-tree-navigation';
-import { ProcedureDetails } from './procedure-details';
+import { OptimizedProcedureDetails } from './optimized-procedure-details';
 import { cn } from '../lib/utils';
 
 export interface DocumentationViewProps {
@@ -14,51 +14,57 @@ export interface DocumentationViewProps {
   className?: string;
 }
 
-export function DocumentationView({
-  introspection,
-  trpcEndpoint,
-  className,
-}: DocumentationViewProps) {
-  const [selectedProcedure, setSelectedProcedure] = React.useState<{
-    router: RouterNode;
-    procedure: ProcedureNode;
-  } | null>(null);
+export const DocumentationView = React.memo<DocumentationViewProps>(
+  ({ introspection, trpcEndpoint, className }) => {
+    const [selectedProcedure, setSelectedProcedure] = React.useState<{
+      router: RouterNode;
+      procedure: ProcedureNode;
+    } | null>(null);
 
-  return (
-    <div className={cn('flex h-full', className)}>
-      {/* Sidebar - Router Tree Navigation */}
-      <div className="w-80 border-r border-border flex flex-col">
-        <RouterTreeNavigation
-          routers={introspection.routers}
-          onProcedureSelect={(router, procedure) => {
-            setSelectedProcedure({ router, procedure });
-          }}
-          selectedProcedure={selectedProcedure}
-        />
-      </div>
+    // Memoize the procedure selection handler
+    const handleProcedureSelect = React.useCallback(
+      (router: RouterNode, procedure: ProcedureNode) => {
+        setSelectedProcedure({ router, procedure });
+      },
+      []
+    );
 
-      {/* Main Content - Procedure Details */}
-      <div className="flex-1 flex flex-col">
-        {selectedProcedure ? (
-          <ProcedureDetails
-            router={selectedProcedure.router}
-            procedure={selectedProcedure.procedure}
-            trpcEndpoint={trpcEndpoint}
+    return (
+      <div className={cn('flex h-full', className)}>
+        {/* Sidebar - Router Tree Navigation */}
+        <div className="w-80 border-r border-border flex flex-col">
+          <RouterTreeNavigation
+            routers={introspection.routers}
+            onProcedureSelect={handleProcedureSelect}
+            selectedProcedure={selectedProcedure}
           />
-        ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <h2 className="text-xl font-semibold mb-2">
-                Welcome to tRPC Studio
-              </h2>
-              <p className="text-muted-foreground">
-                Select a procedure from the sidebar to view its documentation
-                and test it.
-              </p>
+        </div>
+
+        {/* Main Content - Procedure Details */}
+        <div className="flex-1 flex flex-col">
+          {selectedProcedure ? (
+            <OptimizedProcedureDetails
+              router={selectedProcedure.router}
+              procedure={selectedProcedure.procedure}
+              trpcEndpoint={trpcEndpoint}
+            />
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <h2 className="text-xl font-semibold mb-2">
+                  Welcome to tRPC Studio
+                </h2>
+                <p className="text-muted-foreground">
+                  Select a procedure from the sidebar to view its documentation
+                  and test it.
+                </p>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
+);
+
+DocumentationView.displayName = 'DocumentationView';

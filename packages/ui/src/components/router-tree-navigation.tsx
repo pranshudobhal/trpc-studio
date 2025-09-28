@@ -11,8 +11,10 @@ import {
   useKeyboardNavigation,
   useFocusVisible,
   useStudioShortcuts,
+  useDebouncedSearch,
 } from '../hooks';
 import { generateId, announceToScreenReader, aria } from '../lib/accessibility';
+import { VirtualizedRouterTree } from './virtualized-router-tree';
 
 export interface RouterTreeNavigationProps {
   routers: RouterNode[];
@@ -30,332 +32,370 @@ interface FilterState {
   hideInternal: boolean;
 }
 
-export function RouterTreeNavigation({
-  routers,
-  onProcedureSelect,
-  selectedProcedure,
-}: RouterTreeNavigationProps) {
-  const [filters, setFilters] = React.useState<FilterState>({
-    searchQuery: '',
-    selectedTags: [],
-    hideDeprecated: false,
-    hideInternal: false,
-  });
-
-  const [expandedRouters, setExpandedRouters] = React.useState<Set<string>>(
-    new Set()
-  );
-
-  // Accessibility IDs
-  const searchInputId = React.useMemo(() => generateId('search-input'), []);
-  const treeId = React.useMemo(() => generateId('router-tree'), []);
-  const filtersId = React.useMemo(() => generateId('filters'), []);
-
-  // Search input ref for focus management
-  const searchInputRef = React.useRef<HTMLInputElement>(null);
-
-  // Extract all unique tags from procedures
-  const allTags = React.useMemo(() => {
-    const tags = new Set<string>();
-
-    const extractTags = (routerNodes: RouterNode[]) => {
-      routerNodes.forEach(router => {
-        router.procedures.forEach(procedure => {
-          procedure.meta?.tags?.forEach(tag => tags.add(tag));
-        });
-        extractTags(router.children);
-      });
-    };
-
-    extractTags(routers);
-    return Array.from(tags).sort();
-  }, [routers]);
-
-  // Filter procedures based on current filters
-  const filterProcedure = React.useCallback(
-    (procedure: ProcedureNode): boolean => {
-      // Filter by visibility (hidden procedures should not be shown at all)
-      if (procedure.meta?.visibility === 'hidden') {
-        return false;
-      }
-
-      // Filter by deprecated toggle
-      if (filters.hideDeprecated && procedure.meta?.deprecated) {
-        return false;
-      }
-
-      // Filter by internal toggle
-      if (filters.hideInternal && procedure.meta?.visibility === 'internal') {
-        return false;
-      }
-
-      // Filter by search query (name)
-      if (filters.searchQuery) {
-        const query = filters.searchQuery.toLowerCase();
-        if (!procedure.name.toLowerCase().includes(query)) {
-          return false;
-        }
-      }
-
-      // Filter by selected tags
-      if (filters.selectedTags.length > 0) {
-        const procedureTags = procedure.meta?.tags || [];
-        if (!filters.selectedTags.some(tag => procedureTags.includes(tag))) {
-          return false;
-        }
-      }
-
-      return true;
-    },
-    [filters]
-  );
-
-  // Filter routers to only show those with visible procedures
-  const filteredRouters = React.useMemo(() => {
-    const filterRouter = (router: RouterNode): RouterNode | null => {
-      const filteredProcedures = router.procedures.filter(filterProcedure);
-      const filteredChildren = router.children
-        .map(filterRouter)
-        .filter((child): child is RouterNode => child !== null);
-
-      if (filteredProcedures.length === 0 && filteredChildren.length === 0) {
-        return null;
-      }
-
-      return {
-        ...router,
-        procedures: filteredProcedures,
-        children: filteredChildren,
-      };
-    };
-
-    return routers
-      .map(filterRouter)
-      .filter((router): router is RouterNode => router !== null);
-  }, [routers, filterProcedure]);
-
-  const toggleRouter = (routerName: string) => {
-    setExpandedRouters(prev => {
-      const next = new Set(prev);
-      if (next.has(routerName)) {
-        next.delete(routerName);
-      } else {
-        next.add(routerName);
-      }
-      return next;
-    });
-  };
-
-  const toggleTag = (tag: string) => {
-    setFilters(prev => ({
-      ...prev,
-      selectedTags: prev.selectedTags.includes(tag)
-        ? prev.selectedTags.filter(t => t !== tag)
-        : [...prev.selectedTags, tag],
-    }));
-  };
-
-  const clearFilters = () => {
-    setFilters({
+export const RouterTreeNavigation = React.memo<RouterTreeNavigationProps>(
+  ({ routers, onProcedureSelect, selectedProcedure }) => {
+    const [filters, setFilters] = React.useState<FilterState>({
       searchQuery: '',
       selectedTags: [],
       hideDeprecated: false,
       hideInternal: false,
     });
-    announceToScreenReader('Filters cleared');
-  };
 
-  const hasActiveFilters =
-    filters.searchQuery ||
-    filters.selectedTags.length > 0 ||
-    filters.hideDeprecated ||
-    filters.hideInternal;
+    const [expandedRouters, setExpandedRouters] = React.useState<Set<string>>(
+      new Set()
+    );
 
-  // Keyboard shortcuts
-  useStudioShortcuts({
-    onFocusSearch: () => {
-      searchInputRef.current?.focus();
-    },
-  });
+    // Debounce search query for better performance
+    const debouncedSearchQuery = useDebouncedSearch(filters.searchQuery, 300);
 
-  return (
-    <nav
-      className="flex flex-col h-full"
-      role="navigation"
-      aria-label="tRPC Router Navigation"
-    >
-      {/* Search and Filters Header */}
-      <div className="p-4 border-b border-border space-y-3" role="search">
-        {/* Search Input */}
-        <div className="relative">
-          <Search
-            className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground"
-            aria-hidden="true"
-          />
-          <Input
-            ref={searchInputRef}
-            id={searchInputId}
-            placeholder="Search procedures... (Press / to focus)"
-            value={filters.searchQuery}
-            onChange={e => {
-              const value = e.target.value;
-              setFilters(prev => ({ ...prev, searchQuery: value }));
-              if (value) {
-                announceToScreenReader(`Searching for ${value}`, 'polite');
-              }
-            }}
-            className="pl-10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            aria-label="Search procedures"
-            aria-describedby={`${searchInputId}-help`}
-          />
-          <div id={`${searchInputId}-help`} className="sr-only">
-            Type to search through available procedures. Use arrow keys to
-            navigate results.
+    // Accessibility IDs
+    const searchInputId = React.useMemo(() => generateId('search-input'), []);
+    const treeId = React.useMemo(() => generateId('router-tree'), []);
+    const filtersId = React.useMemo(() => generateId('filters'), []);
+
+    // Search input ref for focus management
+    const searchInputRef = React.useRef<HTMLInputElement>(null);
+
+    // Extract all unique tags from procedures
+    const allTags = React.useMemo(() => {
+      const tags = new Set<string>();
+
+      const extractTags = (routerNodes: RouterNode[]) => {
+        routerNodes.forEach(router => {
+          router.procedures.forEach(procedure => {
+            procedure.meta?.tags?.forEach(tag => tags.add(tag));
+          });
+          extractTags(router.children);
+        });
+      };
+
+      extractTags(routers);
+      return Array.from(tags).sort();
+    }, [routers]);
+
+    // Filter procedures based on current filters
+    const filterProcedure = React.useCallback(
+      (procedure: ProcedureNode): boolean => {
+        // Filter by visibility (hidden procedures should not be shown at all)
+        if (procedure.meta?.visibility === 'hidden') {
+          return false;
+        }
+
+        // Filter by deprecated toggle
+        if (filters.hideDeprecated && procedure.meta?.deprecated) {
+          return false;
+        }
+
+        // Filter by internal toggle
+        if (filters.hideInternal && procedure.meta?.visibility === 'internal') {
+          return false;
+        }
+
+        // Filter by search query (name) - use debounced value
+        if (debouncedSearchQuery) {
+          const query = debouncedSearchQuery.toLowerCase();
+          if (!procedure.name.toLowerCase().includes(query)) {
+            return false;
+          }
+        }
+
+        // Filter by selected tags
+        if (filters.selectedTags.length > 0) {
+          const procedureTags = procedure.meta?.tags || [];
+          if (!filters.selectedTags.some(tag => procedureTags.includes(tag))) {
+            return false;
+          }
+        }
+
+        return true;
+      },
+      [filters, debouncedSearchQuery]
+    );
+
+    // Filter routers to only show those with visible procedures
+    const filteredRouters = React.useMemo(() => {
+      const filterRouter = (router: RouterNode): RouterNode | null => {
+        const filteredProcedures = router.procedures.filter(filterProcedure);
+        const filteredChildren = router.children
+          .map(filterRouter)
+          .filter((child): child is RouterNode => child !== null);
+
+        if (filteredProcedures.length === 0 && filteredChildren.length === 0) {
+          return null;
+        }
+
+        return {
+          ...router,
+          procedures: filteredProcedures,
+          children: filteredChildren,
+        };
+      };
+
+      return routers
+        .map(filterRouter)
+        .filter((router): router is RouterNode => router !== null);
+    }, [routers, filterProcedure]);
+
+    const toggleRouter = (routerName: string) => {
+      setExpandedRouters(prev => {
+        const next = new Set(prev);
+        if (next.has(routerName)) {
+          next.delete(routerName);
+        } else {
+          next.add(routerName);
+        }
+        return next;
+      });
+    };
+
+    const toggleTag = (tag: string) => {
+      setFilters(prev => ({
+        ...prev,
+        selectedTags: prev.selectedTags.includes(tag)
+          ? prev.selectedTags.filter(t => t !== tag)
+          : [...prev.selectedTags, tag],
+      }));
+    };
+
+    const clearFilters = () => {
+      setFilters({
+        searchQuery: '',
+        selectedTags: [],
+        hideDeprecated: false,
+        hideInternal: false,
+      });
+      announceToScreenReader('Filters cleared');
+    };
+
+    const hasActiveFilters =
+      debouncedSearchQuery ||
+      filters.selectedTags.length > 0 ||
+      filters.hideDeprecated ||
+      filters.hideInternal;
+
+    // Calculate total number of items for virtualization threshold
+    const totalItems = React.useMemo(() => {
+      let count = 0;
+      const countItems = (routerNodes: RouterNode[]) => {
+        routerNodes.forEach(router => {
+          if (router.children.length > 0 || router.procedures.length > 0) {
+            count++; // Router header
+          }
+          count += router.procedures.length; // Procedures
+          countItems(router.children); // Child routers
+        });
+      };
+      countItems(filteredRouters);
+      return count;
+    }, [filteredRouters]);
+
+    // Use virtualization for large lists (>100 items)
+    const shouldVirtualize = totalItems > 100;
+
+    // Keyboard shortcuts
+    useStudioShortcuts({
+      onFocusSearch: () => {
+        searchInputRef.current?.focus();
+      },
+    });
+
+    return (
+      <nav
+        className="flex flex-col h-full"
+        role="navigation"
+        aria-label="tRPC Router Navigation"
+      >
+        {/* Search and Filters Header */}
+        <div className="p-4 border-b border-border space-y-3" role="search">
+          {/* Search Input */}
+          <div className="relative">
+            <Search
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <Input
+              ref={searchInputRef}
+              id={searchInputId}
+              placeholder="Search procedures... (Press / to focus)"
+              value={filters.searchQuery}
+              onChange={e => {
+                const value = e.target.value;
+                setFilters(prev => ({ ...prev, searchQuery: value }));
+                if (value) {
+                  announceToScreenReader(`Searching for ${value}`, 'polite');
+                }
+              }}
+              className="pl-10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              aria-label="Search procedures"
+              aria-describedby={`${searchInputId}-help`}
+            />
+            <div id={`${searchInputId}-help`} className="sr-only">
+              Type to search through available procedures. Use arrow keys to
+              navigate results.
+            </div>
           </div>
+
+          {/* Filter Toggles */}
+          <fieldset
+            className="flex flex-wrap gap-2"
+            aria-labelledby={`${filtersId}-legend`}
+          >
+            <legend id={`${filtersId}-legend`} className="sr-only">
+              Filter options
+            </legend>
+            <Toggle
+              pressed={filters.hideDeprecated}
+              onPressedChange={pressed => {
+                setFilters(prev => ({ ...prev, hideDeprecated: pressed }));
+                announceToScreenReader(
+                  pressed
+                    ? 'Deprecated procedures hidden'
+                    : 'Deprecated procedures shown'
+                );
+              }}
+              size="sm"
+              className="text-xs"
+            >
+              Hide Deprecated
+            </Toggle>
+            <Toggle
+              pressed={filters.hideInternal}
+              onPressedChange={pressed => {
+                setFilters(prev => ({ ...prev, hideInternal: pressed }));
+                announceToScreenReader(
+                  pressed
+                    ? 'Internal procedures hidden'
+                    : 'Internal procedures shown'
+                );
+              }}
+              size="sm"
+              className="text-xs"
+            >
+              Hide Internal
+            </Toggle>
+          </fieldset>
+
+          {/* Tag Filters */}
+          {allTags.length > 0 && (
+            <div
+              className="space-y-2"
+              role="group"
+              aria-labelledby={`${filtersId}-tags-label`}
+            >
+              <div className="flex items-center gap-2">
+                <Filter
+                  className="h-4 w-4 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <span
+                  id={`${filtersId}-tags-label`}
+                  className="text-sm font-medium"
+                >
+                  Filter by tags:
+                </span>
+              </div>
+              <div
+                className="flex flex-wrap gap-1"
+                role="group"
+                aria-label="Tag filters"
+              >
+                {allTags.map(tag => {
+                  const isSelected = filters.selectedTags.includes(tag);
+                  return (
+                    <Badge
+                      key={tag}
+                      variant={isSelected ? 'default' : 'outline'}
+                      className="cursor-pointer text-xs hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      onClick={() => toggleTag(tag)}
+                      tabIndex={0}
+                      role="button"
+                      aria-pressed={isSelected}
+                      aria-label={`${isSelected ? 'Remove' : 'Add'} ${tag} filter`}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          toggleTag(tag);
+                        }
+                      }}
+                    >
+                      {tag}
+                    </Badge>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Clear Filters */}
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              className="w-full text-xs"
+            >
+              Clear Filters
+            </Button>
+          )}
         </div>
 
-        {/* Filter Toggles */}
-        <fieldset
-          className="flex flex-wrap gap-2"
-          aria-labelledby={`${filtersId}-legend`}
-        >
-          <legend id={`${filtersId}-legend`} className="sr-only">
-            Filter options
-          </legend>
-          <Toggle
-            pressed={filters.hideDeprecated}
-            onPressedChange={pressed => {
-              setFilters(prev => ({ ...prev, hideDeprecated: pressed }));
-              announceToScreenReader(
-                pressed
-                  ? 'Deprecated procedures hidden'
-                  : 'Deprecated procedures shown'
-              );
-            }}
-            size="sm"
-            className="text-xs"
-          >
-            Hide Deprecated
-          </Toggle>
-          <Toggle
-            pressed={filters.hideInternal}
-            onPressedChange={pressed => {
-              setFilters(prev => ({ ...prev, hideInternal: pressed }));
-              announceToScreenReader(
-                pressed
-                  ? 'Internal procedures hidden'
-                  : 'Internal procedures shown'
-              );
-            }}
-            size="sm"
-            className="text-xs"
-          >
-            Hide Internal
-          </Toggle>
-        </fieldset>
-
-        {/* Tag Filters */}
-        {allTags.length > 0 && (
-          <div
-            className="space-y-2"
-            role="group"
-            aria-labelledby={`${filtersId}-tags-label`}
-          >
-            <div className="flex items-center gap-2">
-              <Filter
-                className="h-4 w-4 text-muted-foreground"
-                aria-hidden="true"
-              />
-              <span
-                id={`${filtersId}-tags-label`}
-                className="text-sm font-medium"
-              >
-                Filter by tags:
-              </span>
-            </div>
-            <div
-              className="flex flex-wrap gap-1"
-              role="group"
-              aria-label="Tag filters"
-            >
-              {allTags.map(tag => {
-                const isSelected = filters.selectedTags.includes(tag);
-                return (
-                  <Badge
-                    key={tag}
-                    variant={isSelected ? 'default' : 'outline'}
-                    className="cursor-pointer text-xs hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    onClick={() => toggleTag(tag)}
-                    tabIndex={0}
-                    role="button"
-                    aria-pressed={isSelected}
-                    aria-label={`${isSelected ? 'Remove' : 'Add'} ${tag} filter`}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        toggleTag(tag);
-                      }
-                    }}
-                  >
-                    {tag}
-                  </Badge>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Clear Filters */}
-        {hasActiveFilters && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearFilters}
-            className="w-full text-xs"
-          >
-            Clear Filters
-          </Button>
-        )}
-      </div>
-
-      {/* Router Tree */}
-      <ScrollArea className="flex-1">
-        <div className="p-2">
+        {/* Router Tree */}
+        <div className="flex-1 flex flex-col">
           {filteredRouters.length === 0 ? (
-            <div className="text-center py-8" role="status" aria-live="polite">
+            <div
+              className="flex-1 flex items-center justify-center"
+              role="status"
+              aria-live="polite"
+            >
               <p className="text-muted-foreground text-sm">
                 {hasActiveFilters
                   ? 'No procedures match your filters'
                   : 'No procedures found'}
               </p>
             </div>
+          ) : shouldVirtualize ? (
+            <VirtualizedRouterTree
+              routers={filteredRouters}
+              expandedRouters={expandedRouters}
+              onToggleRouter={toggleRouter}
+              onProcedureSelect={onProcedureSelect}
+              selectedProcedure={selectedProcedure}
+              height={400} // Will be calculated dynamically in real implementation
+              className="flex-1"
+            />
           ) : (
-            <div
-              id={treeId}
-              role="tree"
-              aria-label="tRPC Router and Procedures"
-              aria-describedby={`${treeId}-help`}
-            >
-              <div id={`${treeId}-help`} className="sr-only">
-                Use arrow keys to navigate, Enter or Space to select, and
-                Left/Right to expand/collapse routers.
+            <ScrollArea className="flex-1">
+              <div className="p-2">
+                <div
+                  id={treeId}
+                  role="tree"
+                  aria-label="tRPC Router and Procedures"
+                  aria-describedby={`${treeId}-help`}
+                >
+                  <div id={`${treeId}-help`} className="sr-only">
+                    Use arrow keys to navigate, Enter or Space to select, and
+                    Left/Right to expand/collapse routers.
+                  </div>
+                  <RouterTreeNode
+                    routers={filteredRouters}
+                    expandedRouters={expandedRouters}
+                    onToggleRouter={toggleRouter}
+                    onProcedureSelect={onProcedureSelect}
+                    selectedProcedure={selectedProcedure}
+                    level={0}
+                    treeId={treeId}
+                  />
+                </div>
               </div>
-              <RouterTreeNode
-                routers={filteredRouters}
-                expandedRouters={expandedRouters}
-                onToggleRouter={toggleRouter}
-                onProcedureSelect={onProcedureSelect}
-                selectedProcedure={selectedProcedure}
-                level={0}
-                treeId={treeId}
-              />
-            </div>
+            </ScrollArea>
           )}
         </div>
-      </ScrollArea>
-    </nav>
-  );
-}
+      </nav>
+    );
+  }
+);
+
+RouterTreeNavigation.displayName = 'RouterTreeNavigation';
 
 interface RouterTreeNodeProps {
   routers: RouterNode[];

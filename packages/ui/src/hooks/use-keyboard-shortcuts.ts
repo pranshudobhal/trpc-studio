@@ -130,9 +130,9 @@ export function useKeyboardShortcuts(
       }
     };
 
-    target.addEventListener('keydown', handleKeyDown);
+    target.addEventListener('keydown', handleKeyDown as EventListener);
     return () => {
-      target.removeEventListener('keydown', handleKeyDown);
+      target.removeEventListener('keydown', handleKeyDown as EventListener);
     };
   }, [enabled, target]);
 

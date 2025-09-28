@@ -21,7 +21,11 @@
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "size": "node scripts/check-bundle-size.js",
+    "check-deps": "node scripts/check-dependencies.js",
+    "build:check": "npm run build && npm run size && npm run check-deps",
+    "preinstall": "npm run check-deps"
   },
   "engines": {
     "node": ">=18.18"
@@ -47,6 +51,7 @@
     "lucide-react": "^0.263.1",
     "react-hook-form": "^7",
     "react-json-view-lite": "^2.5.0",
+    "react-window": "^1.8.8",
     "tailwind-merge": "^2",
     "zod": "^3.23.0"
   },
@@ -56,6 +61,7 @@
     "@types/node": "^20.0.0",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
+    "@types/react-window": "^1.8.8",
     "jsdom": "^23.0.0",
     "tailwindcss": "^4",
     "typescript": "^5.0.0",

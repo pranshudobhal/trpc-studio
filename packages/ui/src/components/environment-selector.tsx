@@ -183,17 +183,29 @@ function EnvironmentManagerDialog({
     }
   };
 
-  const handleUpdateEnvironment = (updatedEnv: Environment) => {
+  const handleUpdateEnvironment = (
+    updatedEnv: Environment | Omit<Environment, 'id'>
+  ) => {
+    // If updatedEnv doesn't have an id, it's a new environment
+    if (!('id' in updatedEnv) || !updatedEnv.id) {
+      const newEnvironments = EnvironmentManager.createEnvironment(
+        environments,
+        updatedEnv
+      );
+      onEnvironmentsChange(newEnvironments);
+      return;
+    }
+
     const newEnvironments = EnvironmentManager.updateEnvironment(
       environments,
       updatedEnv.id,
-      updatedEnv
+      updatedEnv as Environment
     );
     onEnvironmentsChange(newEnvironments);
 
     // Update selected environment if it was the one being edited
     if (selectedEnvironment?.id === updatedEnv.id) {
-      onEnvironmentChange(updatedEnv);
+      onEnvironmentChange(updatedEnv as Environment);
     }
 
     setEditingEnvironment(null);

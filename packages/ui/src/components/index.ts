@@ -23,3 +23,11 @@ export * from './playground-form';
 export * from './playground';
 export * from './response-panel';
 export * from './environment-selector';
+
+// Optimized Components
+export * from './optimized-procedure-details';
+export * from './optimized-schema-display';
+export * from './virtualized-router-tree';
+
+// Code Mode (v1.1 placeholder)
+export * from './code-mode-placeholder';
