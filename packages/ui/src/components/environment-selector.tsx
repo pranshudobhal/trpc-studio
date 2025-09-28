@@ -37,6 +37,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { EnvironmentManager } from '../lib/environment-manager';
 
 export interface Environment {
   id: string;
@@ -52,37 +53,6 @@ export interface EnvironmentSelectorProps {
   className?: string;
 }
 
-const DEFAULT_ENVIRONMENTS: Environment[] = [
-  {
-    id: 'local',
-    name: 'Local',
-    baseUrl: 'http://localhost:3000',
-    headers: {},
-    withCredentials: false,
-  },
-  {
-    id: 'dev',
-    name: 'Development',
-    baseUrl: 'https://dev-api.example.com',
-    headers: {},
-    withCredentials: false,
-  },
-  {
-    id: 'staging',
-    name: 'Staging',
-    baseUrl: 'https://staging-api.example.com',
-    headers: {},
-    withCredentials: false,
-  },
-  {
-    id: 'prod',
-    name: 'Production',
-    baseUrl: 'https://api.example.com',
-    headers: {},
-    withCredentials: false,
-  },
-];
-
 export function EnvironmentSelector({
   selectedEnvironment,
   onEnvironmentChange,
@@ -93,29 +63,9 @@ export function EnvironmentSelector({
 
   // Load environments from localStorage on mount
   React.useEffect(() => {
-    const saved = localStorage.getItem('trpc-studio-environments');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setEnvironments(parsed);
-      } catch (error) {
-        console.error('Failed to load environments:', error);
-        setEnvironments(DEFAULT_ENVIRONMENTS);
-      }
-    } else {
-      setEnvironments(DEFAULT_ENVIRONMENTS);
-    }
+    const loadedEnvironments = EnvironmentManager.loadEnvironments();
+    setEnvironments(loadedEnvironments);
   }, []);
-
-  // Save environments to localStorage when they change
-  React.useEffect(() => {
-    if (environments.length > 0) {
-      localStorage.setItem(
-        'trpc-studio-environments',
-        JSON.stringify(environments)
-      );
-    }
-  }, [environments]);
 
   // Set default environment if none selected
   React.useEffect(() => {
@@ -134,20 +84,9 @@ export function EnvironmentSelector({
   const handleCopyAsCurl = () => {
     if (!selectedEnvironment) return;
 
-    const headers = Object.entries(selectedEnvironment.headers)
-      .map(([key, value]) => `-H "${key}: ${value}"`)
-      .join(' ');
-
-    const credentials = selectedEnvironment.withCredentials ? '--include' : '';
-
-    const curl =
-      `curl -X POST ${selectedEnvironment.baseUrl}/api/trpc/procedureName \\
-  -H "Content-Type: application/json" \\
-  ${headers} \\
-  ${credentials} \\
-  -d '{"input": {}}'`.trim();
-
-    navigator.clipboard.writeText(curl);
+    const curlCommand =
+      EnvironmentManager.generateCurlCommand(selectedEnvironment);
+    navigator.clipboard.writeText(curlCommand);
   };
 
   return (
@@ -232,7 +171,10 @@ function EnvironmentManagerDialog({
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
 
   const handleDeleteEnvironment = (id: string) => {
-    const newEnvironments = environments.filter(env => env.id !== id);
+    const newEnvironments = EnvironmentManager.deleteEnvironment(
+      environments,
+      id
+    );
     onEnvironmentsChange(newEnvironments);
 
     // If we deleted the selected environment, select the first one
@@ -242,8 +184,10 @@ function EnvironmentManagerDialog({
   };
 
   const handleUpdateEnvironment = (updatedEnv: Environment) => {
-    const newEnvironments = environments.map(env =>
-      env.id === updatedEnv.id ? updatedEnv : env
+    const newEnvironments = EnvironmentManager.updateEnvironment(
+      environments,
+      updatedEnv.id,
+      updatedEnv
     );
     onEnvironmentsChange(newEnvironments);
 
@@ -255,13 +199,17 @@ function EnvironmentManagerDialog({
     setEditingEnvironment(null);
   };
 
-  const handleCreateEnvironment = (newEnv: Environment) => {
-    onEnvironmentsChange([...environments, newEnv]);
+  const handleCreateEnvironment = (newEnv: Omit<Environment, 'id'>) => {
+    const newEnvironments = EnvironmentManager.createEnvironment(
+      environments,
+      newEnv
+    );
+    onEnvironmentsChange(newEnvironments);
     setIsCreateDialogOpen(false);
   };
 
   const handleExport = () => {
-    const data = JSON.stringify(environments, null, 2);
+    const data = EnvironmentManager.exportEnvironments(environments);
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -278,12 +226,13 @@ function EnvironmentManagerDialog({
     const reader = new FileReader();
     reader.onload = e => {
       try {
-        const imported = JSON.parse(e.target?.result as string);
-        if (Array.isArray(imported)) {
-          onEnvironmentsChange(imported);
-        }
+        const imported = EnvironmentManager.importEnvironments(
+          e.target?.result as string
+        );
+        onEnvironmentsChange(imported);
       } catch (error) {
         console.error('Failed to import environments:', error);
+        // TODO: Show user-friendly error message
       }
     };
     reader.readAsText(file);
@@ -449,7 +398,7 @@ interface EnvironmentEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   environment?: Environment;
-  onSave: (environment: Environment) => void;
+  onSave: (environment: Environment | Omit<Environment, 'id'>) => void;
   title: string;
 }
 
@@ -486,7 +435,13 @@ function EnvironmentEditDialog({
   }, [environment, open]);
 
   const handleSave = () => {
-    if (!formData.name || !formData.baseUrl) return;
+    const errors = EnvironmentManager.validateEnvironment(formData);
+    if (errors.length > 0) {
+      // TODO: Show validation errors to user
+      console.error('Validation errors:', errors);
+      return;
+    }
+
     onSave(formData);
     onOpenChange(false);
   };
