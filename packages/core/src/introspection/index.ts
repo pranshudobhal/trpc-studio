@@ -1,2 +1,5 @@
 // Router introspection utilities
-// TODO: Implement router walking and analysis logic
+export * from './builder';
+
+// Examples (for development and testing)
+export * from './example';
