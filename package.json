@@ -23,7 +23,7 @@
     "check-deps": "node scripts/check-workspace-deps.js && node scripts/check-css-in-js.js"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@types/node": "^22.0.0",
     "typescript": "^5.0.0",
     "eslint": "^8.0.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
