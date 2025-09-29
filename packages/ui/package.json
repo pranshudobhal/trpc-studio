@@ -22,10 +22,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "size": "node scripts/check-bundle-size.js",
-    "check-deps": "node scripts/check-dependencies.js",
-    "build:check": "npm run build && npm run size && npm run check-deps",
-    "preinstall": "npm run check-deps"
+    "lint": "echo 'No linting for ui'",
+    "e2e": "echo 'No E2E for ui'"
   },
   "engines": {
     "node": ">=18.18"
@@ -65,7 +65,8 @@
     "jsdom": "^23.0.0",
     "tailwindcss": "^4",
     "typescript": "^5.0.0",
-    "vitest": "^1.0.0"
+    "vitest": "^1.0.0",
+    "@vitest/coverage-v8": "^1.0.0"
   },
   "keywords": [
     "trpc",

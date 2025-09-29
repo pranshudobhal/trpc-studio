@@ -21,7 +21,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "lint": "echo 'No linting for core'",
+    "e2e": "echo 'No E2E for core'",
+    "size": "echo 'No size check for core'"
   },
   "engines": {
     "node": ">=18.18"
@@ -33,7 +36,8 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "typescript": "^5.0.0",
-    "vitest": "^1.0.0"
+    "vitest": "^1.0.0",
+    "@vitest/coverage-v8": "^1.0.0"
   },
   "keywords": [
     "trpc",

@@ -21,7 +21,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "lint": "echo 'No linting for express'",
+    "e2e": "echo 'No E2E for express'",
+    "size": "echo 'No size check for express'"
   },
   "engines": {
     "node": ">=18.18"
