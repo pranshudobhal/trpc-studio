@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
+import React from 'react';
 
 // Mock ResizeObserver
 global.ResizeObserver = class ResizeObserver {
@@ -21,7 +22,7 @@ global.IntersectionObserver = class IntersectionObserver {
   takeRecords() {
     return [];
   }
-} as any;
+} as unknown as typeof globalThis.IntersectionObserver;
 
 // Mock matchMedia
 Object.defineProperty(window, 'matchMedia', {
@@ -40,9 +41,9 @@ Object.defineProperty(window, 'matchMedia', {
 
 // Mock react-json-view-lite
 vi.mock('react-json-view-lite', () => {
-  const React = require('react');
+  type JsonViewProps = { data: unknown } & Record<string, unknown>;
   return {
-    JsonView: ({ data, ...props }: any) => {
+    JsonView: ({ data, ...props }: JsonViewProps) => {
       return React.createElement(
         'div',
         {
