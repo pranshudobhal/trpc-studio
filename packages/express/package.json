@@ -22,7 +22,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "echo 'No linting for express'",
+    "lint": "eslint src --ext .ts",
     "e2e": "echo 'No E2E for express'",
     "size": "echo 'No size check for express'"
   },
@@ -45,7 +45,11 @@
     "supertest": "^6.0.0",
     "typescript": "^5.0.0",
     "vitest": "^1.0.0",
-    "@vitest/coverage-v8": "^1.0.0"
+    "@vitest/coverage-v8": "^1.0.0",
+    "eslint": "^8.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint-config-prettier": "^9.0.0"
   },
   "keywords": [
     "trpc",
