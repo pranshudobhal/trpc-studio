@@ -2,6 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import { createStudioHandler } from '../app-router/handler';
 import { z } from 'zod';
+import {
+  shouldEnableStudio,
+  validateStudioConfiguration,
+  getEffectiveToken,
+  validateRequestToken,
+} from '@trpc-studio/core';
 
 // Mock the core module with actual implementations for integration testing
 vi.mock('@trpc-studio/core', async () => {
@@ -15,6 +21,8 @@ vi.mock('@trpc-studio/core', async () => {
       requiresToken: false,
       errors: [],
     })),
+    getEffectiveToken: vi.fn(() => undefined),
+    validateRequestToken: vi.fn(() => ({ valid: true })),
   };
 });
 
@@ -218,6 +226,354 @@ describe('Next.js Adapter Integration', () => {
       const data = await response.json();
       expect(data).toHaveProperty('error');
       expect(data.error).toBe('Internal server error');
+    });
+  });
+
+  describe('Security Integration', () => {
+    describe('Production Environment', () => {
+      beforeEach(() => {
+        process.env.NODE_ENV = 'production';
+      });
+
+      it('should return 404 when TRPC_STUDIO_ENABLED is not set', async () => {
+        vi.mocked(shouldEnableStudio).mockReturnValue(false);
+
+        const handler = createStudioHandler({ router: mockRouter });
+        const request = new NextRequest(
+          'http://localhost:3000/__trpc-studio__/introspection',
+          {
+            method: 'GET',
+          }
+        );
+
+        const response = await handler(request);
+        expect(response.status).toBe(404);
+      });
+
+      it('should require token when enabled in production', async () => {
+        process.env.TRPC_STUDIO_ENABLED = 'true';
+
+        vi.mocked(shouldEnableStudio).mockReturnValue(true);
+        vi.mocked(validateStudioConfiguration).mockReturnValue({
+          canEnable: true,
+          requiresToken: true,
+          errors: [],
+        });
+        vi.mocked(validateRequestToken).mockReturnValue({
+          valid: false,
+          error: 'No token provided',
+        });
+
+        const handler = createStudioHandler({ router: mockRouter });
+        const request = new NextRequest(
+          'http://localhost:3000/__trpc-studio__/introspection',
+          {
+            method: 'GET',
+          }
+        );
+
+        const response = await handler(request);
+        expect(response.status).toBe(403);
+      });
+
+      it('should work with valid token in production', async () => {
+        process.env.TRPC_STUDIO_ENABLED = 'true';
+        process.env.TRPC_STUDIO_TOKEN = 'valid-token';
+
+        vi.mocked(shouldEnableStudio).mockReturnValue(true);
+        vi.mocked(validateStudioConfiguration).mockReturnValue({
+          canEnable: true,
+          requiresToken: true,
+          errors: [],
+        });
+        vi.mocked(getEffectiveToken).mockReturnValue('valid-token');
+        vi.mocked(validateRequestToken).mockReturnValue({
+          valid: true,
+          token: 'valid-token',
+        });
+
+        const handler = createStudioHandler({ router: mockRouter });
+        const request = new NextRequest(
+          'http://localhost:3000/__trpc-studio__/introspection',
+          {
+            method: 'GET',
+            headers: {
+              Authorization: 'Bearer valid-token',
+            },
+          }
+        );
+
+        const response = await handler(request);
+        expect(response.status).toBe(200);
+      });
+    });
+
+    describe('Development Environment', () => {
+      beforeEach(() => {
+        process.env.NODE_ENV = 'development';
+      });
+
+      it('should work without token in development', async () => {
+        vi.mocked(shouldEnableStudio).mockReturnValue(true);
+        vi.mocked(validateStudioConfiguration).mockReturnValue({
+          canEnable: true,
+          requiresToken: false,
+          errors: [],
+        });
+
+        const handler = createStudioHandler({ router: mockRouter });
+        const request = new NextRequest(
+          'http://localhost:3000/__trpc-studio__/introspection',
+          {
+            method: 'GET',
+          }
+        );
+
+        const response = await handler(request);
+        expect(response.status).toBe(200);
+      });
+
+      it('should respect explicit disabled option in development', async () => {
+        vi.mocked(shouldEnableStudio).mockReturnValue(false);
+
+        const handler = createStudioHandler({
+          router: mockRouter,
+          enabled: false,
+        });
+        const request = new NextRequest(
+          'http://localhost:3000/__trpc-studio__/introspection',
+          {
+            method: 'GET',
+          }
+        );
+
+        const response = await handler(request);
+        expect(response.status).toBe(404);
+      });
+    });
+
+    describe('Token Validation', () => {
+      it('should accept Authorization Bearer token', async () => {
+        vi.mocked(shouldEnableStudio).mockReturnValue(true);
+        vi.mocked(validateStudioConfiguration).mockReturnValue({
+          canEnable: true,
+          requiresToken: true,
+          errors: [],
+        });
+        vi.mocked(getEffectiveToken).mockReturnValue('test-token');
+        vi.mocked(validateRequestToken).mockReturnValue({
+          valid: true,
+          token: 'test-token',
+        });
+
+        const handler = createStudioHandler({
+          router: mockRouter,
+          token: 'test-token',
+        });
+        const request = new NextRequest(
+          'http://localhost:3000/__trpc-studio__/introspection',
+          {
+            method: 'GET',
+            headers: {
+              Authorization: 'Bearer test-token',
+            },
+          }
+        );
+
+        const response = await handler(request);
+        expect(response.status).toBe(200);
+      });
+
+      it('should accept x-trpc-studio-token header', async () => {
+        vi.mocked(shouldEnableStudio).mockReturnValue(true);
+        vi.mocked(validateStudioConfiguration).mockReturnValue({
+          canEnable: true,
+          requiresToken: true,
+          errors: [],
+        });
+        vi.mocked(getEffectiveToken).mockReturnValue('test-token');
+        vi.mocked(validateRequestToken).mockReturnValue({
+          valid: true,
+          token: 'test-token',
+        });
+
+        const handler = createStudioHandler({
+          router: mockRouter,
+          token: 'test-token',
+        });
+        const request = new NextRequest(
+          'http://localhost:3000/__trpc-studio__/introspection',
+          {
+            method: 'GET',
+            headers: {
+              'x-trpc-studio-token': 'test-token',
+            },
+          }
+        );
+
+        const response = await handler(request);
+        expect(response.status).toBe(200);
+      });
+    });
+  });
+
+  describe('CORS Integration', () => {
+    describe('CORS Preflight Handling', () => {
+      it('should handle CORS preflight for introspection endpoint', async () => {
+        const handler = createStudioHandler({ router: mockRouter });
+
+        const request = new NextRequest(
+          'http://localhost:3000/__trpc-studio__/introspection',
+          {
+            method: 'OPTIONS',
+            headers: {
+              Origin: 'http://localhost:3001',
+              'Access-Control-Request-Method': 'GET',
+              'Access-Control-Request-Headers':
+                'authorization, x-trpc-studio-token',
+            },
+          }
+        );
+
+        const response = await handler(request);
+
+        expect(response.status).toBe(200);
+        expect(response.headers.get('Access-Control-Allow-Origin')).toBe(
+          'http://localhost:3001'
+        );
+        expect(response.headers.get('Access-Control-Allow-Methods')).toContain(
+          'GET'
+        );
+        expect(response.headers.get('Access-Control-Allow-Headers')).toContain(
+          'authorization'
+        );
+        expect(response.headers.get('Access-Control-Allow-Headers')).toContain(
+          'x-trpc-studio-token'
+        );
+        expect(response.headers.get('Vary')).toContain('Origin');
+      });
+
+      it('should include credentials in CORS when requested', async () => {
+        const handler = createStudioHandler({ router: mockRouter });
+
+        const request = new NextRequest(
+          'http://localhost:3000/__trpc-studio__/introspection',
+          {
+            method: 'OPTIONS',
+            headers: {
+              Origin: 'http://localhost:3001',
+              'Access-Control-Request-Method': 'GET',
+              'Access-Control-Request-Headers': 'authorization',
+            },
+          }
+        );
+
+        const response = await handler(request);
+
+        expect(response.headers.get('Access-Control-Allow-Credentials')).toBe(
+          'true'
+        );
+      });
+    });
+
+    describe('CORS Headers on Actual Requests', () => {
+      it('should include CORS headers on introspection GET requests', async () => {
+        const handler = createStudioHandler({ router: mockRouter });
+
+        const request = new NextRequest(
+          'http://localhost:3000/__trpc-studio__/introspection',
+          {
+            method: 'GET',
+            headers: {
+              Origin: 'http://localhost:3001',
+            },
+          }
+        );
+
+        const response = await handler(request);
+
+        expect(response.status).toBe(200);
+        expect(response.headers.get('Access-Control-Allow-Origin')).toBe(
+          'http://localhost:3001'
+        );
+        expect(response.headers.get('Access-Control-Allow-Credentials')).toBe(
+          'true'
+        );
+        expect(response.headers.get('Vary')).toContain('Origin');
+      });
+
+      it('should handle requests without Origin header', async () => {
+        const handler = createStudioHandler({ router: mockRouter });
+
+        const request = new NextRequest(
+          'http://localhost:3000/__trpc-studio__/introspection',
+          {
+            method: 'GET',
+          }
+        );
+
+        const response = await handler(request);
+
+        expect(response.status).toBe(200);
+        // Should not include CORS headers when no Origin is present
+        expect(response.headers.get('Access-Control-Allow-Origin')).toBeNull();
+      });
+    });
+
+    describe('Custom CORS Configuration', () => {
+      it('should allow custom CORS configuration', async () => {
+        const handler = createStudioHandler({
+          router: mockRouter,
+          cors: {
+            origin: [
+              'https://allowed.example.com',
+              'https://another.example.com',
+            ],
+            credentials: true,
+            allowedHeaders: [
+              'authorization',
+              'x-trpc-studio-token',
+              'x-custom-header',
+            ],
+          },
+        });
+
+        // Test allowed origin
+        const request1 = new NextRequest(
+          'http://localhost:3000/__trpc-studio__/introspection',
+          {
+            method: 'OPTIONS',
+            headers: {
+              Origin: 'https://allowed.example.com',
+              'Access-Control-Request-Method': 'GET',
+              'Access-Control-Request-Headers': 'x-custom-header',
+            },
+          }
+        );
+
+        const response1 = await handler(request1);
+        expect(response1.headers.get('Access-Control-Allow-Origin')).toBe(
+          'https://allowed.example.com'
+        );
+        expect(response1.headers.get('Access-Control-Allow-Headers')).toContain(
+          'x-custom-header'
+        );
+
+        // Test disallowed origin
+        const request2 = new NextRequest(
+          'http://localhost:3000/__trpc-studio__/introspection',
+          {
+            method: 'OPTIONS',
+            headers: {
+              Origin: 'https://disallowed.example.com',
+              'Access-Control-Request-Method': 'GET',
+            },
+          }
+        );
+
+        const response2 = await handler(request2);
+        expect(response2.headers.get('Access-Control-Allow-Origin')).toBeNull();
+      });
     });
   });
 });

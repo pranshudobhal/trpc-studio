@@ -128,9 +128,20 @@ function ResponseHeader({ result }: { result: RequestResult }) {
           <span className={cn('font-medium', statusColor)}>
             {result.status} {result.statusText}
           </span>
+          {/* Error badges */}
+          {isNetworkError && (
+            <Badge variant="destructive" className="text-xs">
+              Network Error
+            </Badge>
+          )}
           {result.response?.error && (
             <Badge variant="destructive" className="text-xs">
               tRPC Error
+            </Badge>
+          )}
+          {isError && !result.response?.error && !isNetworkError && (
+            <Badge variant="destructive" className="text-xs">
+              HTTP Error
             </Badge>
           )}
         </div>
@@ -190,6 +201,9 @@ function ResponseContent({
             size="sm"
             onClick={onToggleRaw}
             className="h-7 text-xs"
+            aria-label={
+              showRaw ? 'Switch to pretty JSON view' : 'Switch to raw JSON view'
+            }
           >
             {showRaw ? (
               <>

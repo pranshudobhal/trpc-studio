@@ -289,7 +289,7 @@ export function extractSuperJsonTypes(data: unknown): Array<{
 
     if (Array.isArray(obj)) {
       obj.forEach((item, index) => {
-        traverse(item, `${path}[${index}]`);
+        traverse(item, `${path}.${index}`);
       });
       return;
     }

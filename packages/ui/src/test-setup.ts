@@ -1,3 +1,6 @@
+import '@testing-library/jest-dom';
+import { vi } from 'vitest';
+
 // Mock ResizeObserver
 global.ResizeObserver = class ResizeObserver {
   observe() {}
@@ -33,4 +36,24 @@ Object.defineProperty(window, 'matchMedia', {
     removeEventListener: () => {},
     dispatchEvent: () => {},
   }),
+});
+
+// Mock react-json-view-lite
+vi.mock('react-json-view-lite', () => {
+  const React = require('react');
+  return {
+    JsonView: ({ data, ...props }: any) => {
+      return React.createElement(
+        'div',
+        {
+          'data-testid': 'json-viewer',
+          ...props,
+        },
+        JSON.stringify(data)
+      );
+    },
+    allExpanded: () => true,
+    defaultStyles: {},
+    darkStyles: {},
+  };
 });

@@ -131,25 +131,71 @@ export class EnvironmentManager {
       procedureName = 'procedureName',
     } = options;
 
-    const url = `${environment.baseUrl}${endpoint}/${procedureName}`;
+    // Normalize base URL
+    let baseUrl = environment.baseUrl;
+    if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+      baseUrl = `https://${baseUrl}`;
+    }
 
-    const headers = [
-      '-H "Content-Type: application/json"',
-      ...Object.entries(environment.headers).map(
-        ([key, value]) => `-H "${key}: ${value}"`
-      ),
-    ];
+    // Remove trailing slash from baseUrl and leading slash from endpoint
+    baseUrl = baseUrl.replace(/\/$/, '');
+    const normalizedEndpoint = endpoint.startsWith('/')
+      ? endpoint
+      : `/${endpoint}`;
 
-    const credentials = environment.withCredentials ? '--include' : '';
-    const bodyStr = JSON.stringify(body, null, 0);
+    let url = `${baseUrl}${normalizedEndpoint}/${procedureName}`;
 
-    const parts = [
-      `curl -X ${method}`,
-      url,
-      ...headers,
-      credentials,
-      `-d '${bodyStr}'`,
-    ].filter(Boolean);
+    // Escape header values
+    const escapeHeaderValue = (value: string): string => {
+      return value
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"')
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r');
+    };
+
+    // Build headers map to avoid duplicates
+    const headersMap = new Map<string, string>();
+
+    // Add default Content-Type
+    headersMap.set('content-type', 'application/json');
+
+    // Add environment headers (case-insensitive merge)
+    Object.entries(environment.headers).forEach(([key, value]) => {
+      headersMap.set(key.toLowerCase(), value);
+    });
+
+    // Convert to sorted array
+    const headers = Array.from(headersMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => `-H "${key}: ${escapeHeaderValue(value)}"`);
+
+    const parts = [`curl -X ${method}`];
+
+    // Handle GET requests with query parameters
+    if (method === 'GET' && body && typeof body === 'object') {
+      const queryParam = encodeURIComponent(JSON.stringify(body));
+      url += `?input=${queryParam}`;
+      parts.push(url);
+    } else {
+      parts.push(url);
+    }
+
+    // Add headers
+    parts.push(...headers);
+
+    // Add credentials flags
+    if (environment.withCredentials) {
+      parts.push('--include');
+      parts.push('--cookie-jar cookies.txt');
+      parts.push('--cookie cookies.txt');
+    }
+
+    // Add body for non-GET requests
+    if (method !== 'GET') {
+      const bodyStr = JSON.stringify(body, null, 0);
+      parts.push(`-d '${bodyStr}'`);
+    }
 
     return parts.join(' \\\n  ');
   }
