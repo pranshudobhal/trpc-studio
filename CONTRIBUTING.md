@@ -264,8 +264,6 @@ pnpm --filter @trpc-studio/core test
 # Run tests in watch mode
 pnpm -w run test --watch
 
-# Run E2E tests
-pnpm -w run e2e
 ```
 
 ### Test Categories
@@ -388,7 +386,6 @@ export const GET = createStudioHandler({
 pnpm -w run test
 pnpm -w run typecheck
 pnpm -w run lint
-pnpm -w run e2e
 ````
 
 2. **Check bundle size**:

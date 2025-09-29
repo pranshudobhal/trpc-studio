@@ -14,7 +14,6 @@
     "lint": "pnpm -r run lint",
     "test": "pnpm -r run test",
     "test:coverage": "pnpm -r run test:coverage",
-    "e2e": "pnpm -r run e2e",
     "size": "pnpm -r run size",
     "dev": "pnpm -r --parallel run dev",
     "clean": "pnpm -r run clean",
