@@ -39,9 +39,6 @@
     },
     {
       "path": "./packages/express"
-    },
-    {
-      "path": "./examples/next-basic"
     }
   ]
 }
