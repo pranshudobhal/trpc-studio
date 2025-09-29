@@ -12,80 +12,15 @@ concurrency:
 
 jobs:
   test:
-    name: Test
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [22, 20]
-    steps:
-      - uses: actions/checkout@v4
-      - name: Enable Corepack
-        run: corepack enable
-      - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'pnpm'
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Type check
-        run: pnpm run typecheck
-      - name: Lint
-        run: pnpm run lint
-      - name: Build
-        run: pnpm run build
-      - name: Test
-        run: pnpm run test:coverage
-      - name: Upload coverage
-        if: matrix.node-version == 22
-        uses: codecov/codecov-action@v4
-        with:
-          fail_ci_if_error: false
+    name: Test & Quality Checks
+    uses: ./.github/workflows/test.yml
 
   bundle-size:
-    name: Bundle Size
-    runs-on: ubuntu-latest
+    name: Bundle Size Check
     needs: test
-    steps:
-      - uses: actions/checkout@v4
-      - name: Enable Corepack
-        run: corepack enable
-      - name: Setup Node.js 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Build
-        run: pnpm run build
-      - name: Check bundle size
-        run: |
-          cd packages/ui
-          if [ -f "scripts/check-bundle-size.js" ]; then
-            node scripts/check-bundle-size.js
-          else
-            echo "Bundle size check not implemented yet"
-          fi
+    uses: ./.github/workflows/bundle-size.yml
 
   e2e:
-    name: E2E
-    runs-on: ubuntu-latest
+    name: E2E Tests
     needs: test
-    steps:
-      - uses: actions/checkout@v4
-      - name: Enable Corepack
-        run: corepack enable
-      - name: Setup Node.js 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'pnpm'
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Install Playwright
-        run: pnpm exec playwright install --with-deps
-      - name: Build
-        run: pnpm run build
-      - name: Run E2E tests
-        run: pnpm run e2e
+    uses: ./.github/workflows/e2e.yml
