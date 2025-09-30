@@ -44,11 +44,11 @@ export function extractToken(
   if (getToken && request) {
     try {
       const customToken = getToken(request);
-      if (customToken) {
-        return { token: customToken, source: 'custom' };
-      }
+      // If custom extraction is provided, it's exclusive - don't fall back
+      return { token: customToken, source: 'custom' };
     } catch (error) {
-      // Ignore custom extraction errors and fall back to standard headers
+      // Only fall back to standard headers if custom extraction throws an error
+      // This handles unexpected errors in custom extraction logic
     }
   }
 

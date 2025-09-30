@@ -99,6 +99,9 @@ function extractRouterDefinition(router: unknown): RawRouterDefinition {
 
   const def = routerWithDef._def as {
     procedures?: Record<string, unknown>;
+    queries?: Record<string, unknown>;
+    mutations?: Record<string, unknown>;
+    subscriptions?: Record<string, unknown>;
     router?: Record<string, unknown>;
     record?: Record<string, unknown>;
     _config?: { transformer?: unknown };
@@ -108,19 +111,29 @@ function extractRouterDefinition(router: unknown): RawRouterDefinition {
   const procedures: Record<string, RawProcedureDefinition> = {};
   const routers: Record<string, RawRouterDefinition> = {};
 
-  // Handle procedures (queries, mutations, subscriptions)
-  if (def.procedures) {
-    Object.entries(def.procedures).forEach(([name, proc]) => {
-      const procedureDef = extractProcedureDefinition(proc);
-      if (procedureDef) {
-        procedures[name] = procedureDef;
-      }
-    });
-  }
+  // Handle procedures - try multiple sources for different tRPC versions
+  const procedureSources = [
+    def.procedures, // Legacy format
+    def.queries, // v11 queries
+    def.mutations, // v11 mutations
+    def.subscriptions, // v11 subscriptions
+  ];
+
+  procedureSources.forEach(source => {
+    if (source && typeof source === 'object') {
+      Object.entries(source).forEach(([name, proc]) => {
+        const procedureDef = extractProcedureDefinition(proc);
+        if (procedureDef) {
+          procedures[name] = procedureDef;
+        }
+      });
+    }
+  });
 
   // Handle nested routers (router record pattern)
   if (def.router || def.record) {
     const routerRecord = def.router || def.record;
+
     if (routerRecord && typeof routerRecord === 'object') {
       Object.entries(routerRecord).forEach(([name, nestedRouter]) => {
         try {
@@ -133,13 +146,15 @@ function extractRouterDefinition(router: unknown): RawRouterDefinition {
     }
   }
 
-  return {
+  const result = {
     procedures,
     routers,
     meta: {
       transformer: extractTransformerFromConfig(def._config),
     },
   };
+
+  return result;
 }
 
 /**
@@ -148,7 +163,11 @@ function extractRouterDefinition(router: unknown): RawRouterDefinition {
 function extractProcedureDefinition(
   procedure: unknown
 ): RawProcedureDefinition | null {
-  if (!procedure || typeof procedure !== 'object') {
+  // tRPC procedures can be functions with _def property
+  if (
+    !procedure ||
+    (typeof procedure !== 'object' && typeof procedure !== 'function')
+  ) {
     return null;
   }
 
@@ -233,8 +252,9 @@ function walkRouterDefinition(
 ): RouterNode[] {
   const nodes: RouterNode[] = [];
 
-  // Process procedures in this router
-  const procedures: ProcedureNode[] = [];
+  // Group procedures by router path (handles tRPC v11 flattened structure)
+  const proceduresByRouter: Record<string, ProcedureNode[]> = {};
+  const directProcedures: ProcedureNode[] = [];
 
   Object.entries(routerDef.procedures).forEach(([name, procDef]) => {
     // Skip subscriptions in v1 (out of scope)
@@ -260,36 +280,139 @@ function walkRouterDefinition(
       return;
     }
 
-    // Convert to ProcedureNode (schema conversion will be handled separately)
-    const procedureNode: ProcedureNode = {
-      name,
-      type: procDef.type as 'query' | 'mutation',
-      meta: procDef.meta ? convertProcedureMeta(procDef.meta) : undefined,
-      // Note: input/output schemas will be converted by the schema converter
-      input: undefined, // TODO: Convert in schema task
-      output: undefined, // TODO: Convert in schema task
-    };
+    // Check if this is a nested procedure (contains dots)
+    const parts = name.split('.');
+    if (parts.length > 1) {
+      // This is a nested procedure like "users.list"
+      const routerName = parts[0];
+      const procedureName = parts.slice(1).join('.');
 
-    procedures.push(procedureNode);
+      if (!proceduresByRouter[routerName]) {
+        proceduresByRouter[routerName] = [];
+      }
+
+      const procedureNode: ProcedureNode = {
+        name: procedureName,
+        type: procDef.type as 'query' | 'mutation',
+        meta: procDef.meta ? convertProcedureMeta(procDef.meta) : undefined,
+        input: undefined,
+        output: undefined,
+      };
+
+      proceduresByRouter[routerName].push(procedureNode);
+    } else {
+      // This is a direct procedure on the root router
+      const procedureNode: ProcedureNode = {
+        name,
+        type: procDef.type as 'query' | 'mutation',
+        meta: procDef.meta ? convertProcedureMeta(procDef.meta) : undefined,
+        input: undefined,
+        output: undefined,
+      };
+
+      directProcedures.push(procedureNode);
+    }
   });
 
-  // If this router has procedures, create a node for it
-  if (procedures.length > 0 || Object.keys(routerDef.routers).length > 0) {
-    const routerName = basePath || 'root';
-
-    // Process nested routers
-    const children: RouterNode[] = [];
-    Object.entries(routerDef.routers).forEach(([name, nestedDef]) => {
-      const nestedPath = basePath ? `${basePath}.${name}` : name;
-      const nestedNodes = walkRouterDefinition(nestedDef, nestedPath, options);
-      children.push(...nestedNodes);
-    });
-
-    nodes.push({
+  // Create child routers from grouped procedures
+  const children: RouterNode[] = [];
+  Object.entries(proceduresByRouter).forEach(([routerName, procedures]) => {
+    const childRouter: RouterNode = {
       name: routerName,
       procedures,
-      children,
+      children: [], // TODO: Handle nested nested routers if needed
+    };
+    children.push(childRouter);
+  });
+
+  // Process explicitly defined nested routers (for compatibility with older tRPC versions)
+  Object.entries(routerDef.routers).forEach(([name, nestedDef]) => {
+    // Create a child router node for each nested router
+    const childProcedures: ProcedureNode[] = [];
+
+    // Process procedures in the nested router
+    Object.entries(nestedDef.procedures).forEach(([procName, procDef]) => {
+      // Skip subscriptions in v1 (out of scope)
+      if (procDef.type === 'subscription') {
+        return;
+      }
+
+      // Check visibility filters
+      const visibility = procDef.meta?.visibility || 'public';
+
+      // Always skip hidden procedures
+      if (visibility === 'hidden') {
+        return;
+      }
+
+      // Skip internal if not included
+      if (visibility === 'internal' && !options.includeInternal) {
+        return;
+      }
+
+      // Skip deprecated if not included
+      if (procDef.meta?.deprecated && !options.includeDeprecated) {
+        return;
+      }
+
+      // Convert to ProcedureNode (schema conversion will be handled separately)
+      const procedureNode: ProcedureNode = {
+        name: procName, // Use just the procedure name, not the full path
+        type: procDef.type as 'query' | 'mutation',
+        meta: procDef.meta ? convertProcedureMeta(procDef.meta) : undefined,
+        // Note: input/output schemas will be converted by the schema converter
+        input: undefined, // TODO: Convert in schema task
+        output: undefined, // TODO: Convert in schema task
+      };
+
+      childProcedures.push(procedureNode);
     });
+
+    // Recursively process nested routers within this router
+    const grandChildren: RouterNode[] = [];
+    Object.entries(nestedDef.routers).forEach(
+      ([nestedName, nestedNestedDef]) => {
+        const grandChildPath = `${name}.${nestedName}`;
+        const grandChildNodes = walkRouterDefinition(
+          nestedNestedDef,
+          grandChildPath,
+          options
+        );
+        grandChildren.push(...grandChildNodes);
+      }
+    );
+
+    // Create the child router node (only if not already created from procedure grouping)
+    if (!proceduresByRouter[name]) {
+      // Include the router if it has procedures, nested routers, or nested router definitions
+      const hasNestedDefinitions = Object.keys(nestedDef.routers).length > 0;
+      if (
+        childProcedures.length > 0 ||
+        grandChildren.length > 0 ||
+        hasNestedDefinitions
+      ) {
+        const childRouter: RouterNode = {
+          name,
+          procedures: childProcedures,
+          children: grandChildren,
+        };
+
+        children.push(childRouter);
+      }
+    }
+  });
+
+  // Create the main router node
+  if (directProcedures.length > 0 || children.length > 0) {
+    const routerName = basePath || 'root';
+
+    const routerNode = {
+      name: routerName,
+      procedures: directProcedures,
+      children,
+    };
+
+    nodes.push(routerNode);
   }
 
   return nodes;

@@ -24,7 +24,7 @@ export interface NormalizedExpressStudioOptions extends ExpressStudioOptions {
   introspectionPath: string;
   serveStatic: boolean;
   enabled: boolean;
-  getToken: (req: unknown) => string | null;
+  getToken?: (req: unknown) => string | null; // Make optional
   staticAssetPath: string;
   expressRouter: any; // Will be created if not provided
 }
@@ -37,10 +37,10 @@ export function normalizeExpressOptions(
 ): NormalizedExpressStudioOptions {
   return {
     ...DEFAULT_EXPRESS_CONFIG,
-    router: options.router,
+    ...options, // This ensures custom paths are preserved
     enabled: options.enabled ?? process.env.NODE_ENV !== 'production',
     token: options.token ?? process.env.TRPC_STUDIO_TOKEN,
-    getToken: options.getToken ?? (() => null),
+    getToken: options.getToken, // Don't provide a default function
     staticAssetPath: options.staticAssetPath ?? '',
     expressRouter: options.expressRouter ?? (undefined as any), // Will be created if not provided
   };
