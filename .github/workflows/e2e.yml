@@ -1,0 +1,67 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_call:
+
+jobs:
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable Corepack
+        run: corepack enable
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Playwright
+        run: pnpm exec playwright install --with-deps
+      - name: Build
+        run: pnpm run build
+      - name: Start Next.js dev server
+        run: |
+          cd examples/next-basic
+          echo "Starting Next.js dev server..."
+          pnpm run dev &
+          SERVER_PID=$!
+          echo $SERVER_PID > server.pid
+          echo "Started server with PID: $SERVER_PID"
+        env:
+          NODE_ENV: development
+      - name: Wait for server to be ready
+        run: |
+          echo "Waiting for server to start on http://localhost:3000"
+          for i in {1..30}; do
+            if curl -s -f http://localhost:3000 > /dev/null 2>&1; then
+              echo "Server is ready!"
+              exit 0
+            fi
+            echo "Attempt $i: Server not ready yet, waiting..."
+            sleep 2
+          done
+          echo "Server failed to start within 60 seconds"
+          exit 1
+      - name: Run E2E tests
+        run: pnpm run e2e
+        env:
+          PLAYWRIGHT_SKIP_WEBSERVER: true
+      - name: Stop Next.js dev server
+        if: always()
+        run: |
+          if [ -f examples/next-basic/server.pid ]; then
+            SERVER_PID=$(cat examples/next-basic/server.pid)
+            echo "Stopping server with PID: $SERVER_PID"
+            kill $SERVER_PID || true
+            rm examples/next-basic/server.pid
+            echo "Server stopped"
+          else
+            echo "No server PID file found"
+          fi

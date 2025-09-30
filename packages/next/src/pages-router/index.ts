@@ -1,4 +1,3 @@
-// Pages Router utilities placeholder
-export function createPagesRouterHandler() {
-  // Will be implemented in later tasks
-}
+// Pages Router exports for Next.js Pages Router
+export * from './handler';
+export * from './ui';

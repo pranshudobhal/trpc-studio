@@ -1,4 +1,4 @@
-// Shared Next.js utilities placeholder
-export interface StudioOptions {
-  // Will be implemented in later tasks
-}
+// Shared utilities for Next.js adapters
+export * from './config';
+export * from './handler';
+export * from './static';

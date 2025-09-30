@@ -1,7 +1,7 @@
 {
   "name": "next-basic-example",
   "version": "1.0.0",
-  "description": "Basic Next.js example using tRPC Studio",
+  "description": "Comprehensive Next.js 14 example using tRPC Studio with App Router",
   "private": true,
   "type": "module",
   "engines": {
@@ -18,18 +18,24 @@
     "clean": "rm -rf .next dist"
   },
   "dependencies": {
-    "next": "^14.0.0",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
-    "@trpc/server": "^11.0.0",
-    "@trpc/client": "^11.0.0",
+    "next": "^14.2.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "@trpc/server": "^11.6.0",
+    "@trpc/client": "^11.6.0",
+    "@trpc/next": "^11.6.0",
+    "@trpc/react-query": "^11.6.0",
     "@tanstack/react-query": "^5.0.0",
-    "superjson": "^2.0.0",
+    "superjson": "^2.2.0",
     "@trpc-studio/next": "workspace:*",
-    "zod": "^3.23.0"
+    "@trpc-studio/ui": "workspace:*",
+    "zod": "^3.23.0",
+    "tailwindcss": "^4.0.0",
+    "@tailwindcss/postcss": "^4.0.0",
+    "postcss": "^8.4.0"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@types/node": "^22.0.0",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
     "typescript": "^5.0.0",
@@ -42,7 +48,9 @@
     "trpc",
     "nextjs",
     "example",
-    "trpc-studio"
+    "trpc-studio",
+    "app-router",
+    "tailwind-v4"
   ],
   "author": "tRPC Studio Team",
   "license": "MIT"

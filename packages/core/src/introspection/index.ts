@@ -1,4 +1,5 @@
-// Introspection utilities placeholder
-export function buildIntrospection() {
-  // Will be implemented in later tasks
-}
+// Router introspection utilities
+export * from './builder';
+
+// Examples (for development and testing)
+export * from './example';

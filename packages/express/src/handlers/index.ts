@@ -1,4 +1,3 @@
-// Express handlers placeholder
-export function introspectionHandler() {
-  // Will be implemented in later tasks
-}
+// Express route handlers for tRPC Studio
+export * from './introspection';
+export * from './static';

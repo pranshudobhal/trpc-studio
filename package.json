@@ -13,15 +13,18 @@
     "typecheck": "pnpm -r run typecheck",
     "lint": "pnpm -r run lint",
     "test": "pnpm -r run test",
+    "test:coverage": "pnpm -r run test:coverage",
     "e2e": "pnpm -r run e2e",
+    "e2e:ui": "playwright test --config=playwright.config.ts",
     "size": "pnpm -r run size",
     "dev": "pnpm -r --parallel run dev",
     "clean": "pnpm -r run clean",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "check-deps": "node scripts/check-workspace-deps.js && node scripts/check-css-in-js.js"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@types/node": "^22.0.0",
     "typescript": "^5.0.0",
     "eslint": "^8.0.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
@@ -29,7 +32,8 @@
     "prettier": "^3.0.0",
     "eslint-config-prettier": "^9.0.0",
     "vitest": "^1.0.0",
-    "playwright": "^1.40.0"
+    "@playwright/test": "^1.55.1",
+    "glob": "^10.0.0"
   },
   "keywords": [
     "trpc",

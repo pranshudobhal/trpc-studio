@@ -5,7 +5,6 @@
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
-    "noEmit": true,
     "esModuleInterop": true,
     "module": "ESNext",
     "moduleResolution": "bundler",
@@ -40,9 +39,6 @@
     },
     {
       "path": "./packages/express"
-    },
-    {
-      "path": "./examples/next-basic"
     }
   ]
 }

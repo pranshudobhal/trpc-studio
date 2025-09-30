@@ -1,45 +1,54 @@
 {
   "name": "@trpc-studio/express",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Express adapter for tRPC Studio",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
     }
   },
   "files": [
     "dist"
   ],
-  "engines": {
-    "node": ">=18.18"
-  },
   "scripts": {
-    "build": "tsc --build",
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src --ext .ts,.tsx",
     "test": "vitest run",
     "test:watch": "vitest",
-    "clean": "rm -rf dist"
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src --ext .ts",
+    "size": "echo 'No size check for express'"
+  },
+  "engines": {
+    "node": ">=18.18"
   },
   "dependencies": {
     "@trpc-studio/core": "workspace:*",
     "@trpc-studio/ui": "workspace:*",
-    "express": "^4.0.0 || ^5.0.0"
+    "express": "^4 || ^5"
   },
   "peerDependencies": {
     "@trpc/server": ">=10 <12",
     "zod": "^3.23.0"
   },
   "devDependencies": {
-    "@types/express": "^4.0.0",
-    "@types/node": "^20.0.0",
+    "@types/express": "^4.17.0",
+    "@types/node": "^22.0.0",
+    "@types/supertest": "^6.0.0",
+    "supertest": "^6.0.0",
     "typescript": "^5.0.0",
+    "vitest": "^1.0.0",
+    "@vitest/coverage-v8": "^1.0.0",
     "eslint": "^8.0.0",
-    "vitest": "^1.0.0"
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint-config-prettier": "^9.0.0"
   },
   "keywords": [
     "trpc",
@@ -47,11 +56,10 @@
     "adapter",
     "middleware"
   ],
-  "author": "tRPC Studio Team",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/trpc/trpc-studio.git",
+    "url": "https://github.com/trpc-studio/trpc-studio.git",
     "directory": "packages/express"
   }
 }
