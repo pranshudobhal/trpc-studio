@@ -10,6 +10,7 @@ import {
 } from '@trpc-studio/core';
 import type { NextStudioOptions } from './config';
 import { normalizeNextOptions } from './config';
+import { getCorsHeaders, handleCorsPreflight } from './cors';
 
 /**
  * Create introspection handler for Next.js
@@ -30,11 +31,20 @@ export function createIntrospectionHandler(options: NextStudioOptions) {
         return new NextResponse(null, { status: 404 });
       }
 
-      // Only allow GET requests
+      // Handle CORS preflight requests
+      if (request.method === 'OPTIONS') {
+        return handleCorsPreflight(request, config.cors);
+      }
+
+      // Only allow GET requests (after handling OPTIONS)
       if (request.method !== 'GET') {
+        const corsHeaders = getCorsHeaders(request, config.cors);
         return new NextResponse(null, {
           status: 405,
-          headers: { Allow: 'GET' },
+          headers: {
+            Allow: 'GET, OPTIONS',
+            ...corsHeaders,
+          },
         });
       }
 
@@ -54,9 +64,13 @@ export function createIntrospectionHandler(options: NextStudioOptions) {
         );
 
         if (!tokenValidation.valid) {
+          const corsHeaders = getCorsHeaders(request, config.cors);
           return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), {
             status: 403,
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders,
+            },
           });
         }
       }
@@ -64,20 +78,28 @@ export function createIntrospectionHandler(options: NextStudioOptions) {
       // Build introspection data
       const introspection = buildIntrospection(config.router);
 
+      // Get CORS headers for the response
+      const corsHeaders = getCorsHeaders(request, config.cors);
+
       return NextResponse.json(introspection, {
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           Pragma: 'no-cache',
           Expires: '0',
+          ...corsHeaders,
         },
       });
     } catch (error) {
       console.error('Studio introspection error:', error);
+      const corsHeaders = getCorsHeaders(request, config.cors);
       return new NextResponse(
         JSON.stringify({ error: 'Internal server error' }),
         {
           status: 500,
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...corsHeaders,
+          },
         }
       );
     }
@@ -91,34 +113,34 @@ export function createLegacyIntrospectionHandler(options: NextStudioOptions) {
   const config = normalizeNextOptions(options);
 
   return async function legacyIntrospectionHandler(
-    req: any, // NextApiRequest
-    res: any // NextApiResponse
+    req: unknown, // NextApiRequest
+    res: unknown // NextApiResponse
   ) {
     try {
       // Check if studio should be enabled
       if (!shouldEnableStudio(config)) {
-        return res.status(404).end();
+        return (res as any).status(404).end();
       }
 
       // Validate configuration
       const validation = validateStudioConfiguration(config);
       if (!validation.canEnable) {
-        return res.status(404).end();
+        return (res as any).status(404).end();
       }
 
       // Only allow GET requests
-      if (req.method !== 'GET') {
-        res.setHeader('Allow', 'GET');
-        return res.status(405).end();
+      if ((req as any).method !== 'GET') {
+        (res as any).setHeader('Allow', 'GET');
+        return (res as any).status(405).end();
       }
 
       // Validate token if required
       if (validation.requiresToken) {
         const effectiveToken = getEffectiveToken(config);
         const requestContext: RequestContext = {
-          headers: req.headers,
-          method: req.method,
-          url: req.url,
+          headers: (req as any).headers,
+          method: (req as any).method,
+          url: (req as any).url,
         };
 
         const tokenValidation = validateRequestToken(
@@ -128,7 +150,7 @@ export function createLegacyIntrospectionHandler(options: NextStudioOptions) {
         );
 
         if (!tokenValidation.valid) {
-          return res.status(403).json({ error: 'Unauthorized' });
+          return (res as any).status(403).json({ error: 'Unauthorized' });
         }
       }
 
@@ -136,14 +158,17 @@ export function createLegacyIntrospectionHandler(options: NextStudioOptions) {
       const introspection = buildIntrospection(config.router);
 
       // Set cache headers
-      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
+      (res as any).setHeader(
+        'Cache-Control',
+        'no-cache, no-store, must-revalidate'
+      );
+      (res as any).setHeader('Pragma', 'no-cache');
+      (res as any).setHeader('Expires', '0');
 
-      return res.status(200).json(introspection);
+      return (res as any).status(200).json(introspection);
     } catch (error) {
       console.error('Studio introspection error:', error);
-      return res.status(500).json({ error: 'Internal server error' });
+      return (res as any).status(500).json({ error: 'Internal server error' });
     }
   };
 }
