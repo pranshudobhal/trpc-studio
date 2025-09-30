@@ -1,7 +1,8 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen, waitFor } from '@testing-library/react';
 import { EnvironmentSelector, type Environment } from '../environment-selector';
+import { describe, expect, it, vi } from 'vitest';
+import { beforeEach } from 'node:test';
 
 // Mock localStorage
 const mockLocalStorage = {

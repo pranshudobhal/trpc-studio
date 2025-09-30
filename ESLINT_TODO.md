@@ -27,11 +27,10 @@ addressed gradually to improve code quality.
 
 - **`@typescript-eslint/ban-ts-comment`**: Currently `off`, should be `error`
   - Remove `@ts-ignore` comments by fixing underlying TypeScript issues
-  - Found in test files: `src/__tests__/e2e/studio-smoke.test.ts`
+  - Found in test files: `src/components/__tests__/studio-smoke.spec.ts`
 
 - **`@typescript-eslint/prefer-ts-expect-error`**: Currently `off`, should be `error`
   - Replace `@ts-ignore` with `@ts-expect-error` where suppression is needed
-  - 4 instances in smoke tests
 
 ### Medium Priority
 

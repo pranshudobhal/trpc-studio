@@ -209,8 +209,8 @@ describe('UI Library Utilities', () => {
           'https://api.example.com/api/trpc/procedureName'
         );
         expect(result).toContain('-H "Content-Type: application/json"');
-        expect(result).toContain('-H "authorization: Bearer token123"');
-        expect(result).toContain('-H "x-api-key: key456"');
+        expect(result).toContain('-H "Authorization: Bearer token123"');
+        expect(result).toContain('-H "X-Api-Key: key456"');
         expect(result).toContain('--include');
         expect(result).toContain('-d \'{"input":{}}\'');
       });
@@ -229,7 +229,9 @@ describe('UI Library Utilities', () => {
         expect(result).toContain(
           'https://api.example.com/api/custom/customProcedure'
         );
-        expect(result).toContain('-d \'{"custom":"data"}\'');
+        // GET request should encode input as query param instead of -d body
+        expect(result).toMatch(/customProcedure\?input=/);
+        expect(result).not.toContain('-d \'{"custom":"data"}\'');
       });
     });
 

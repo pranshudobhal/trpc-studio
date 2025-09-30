@@ -23,7 +23,6 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src --ext .ts",
-    "e2e": "echo 'No E2E for core'",
     "size": "echo 'No size check for core'"
   },
   "engines": {

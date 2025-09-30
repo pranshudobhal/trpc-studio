@@ -25,7 +25,7 @@
     "test:coverage": "vitest run --coverage",
     "size": "node scripts/check-bundle-size.js",
     "lint": "eslint src --ext .ts,.tsx",
-    "e2e": "echo 'No E2E for ui'"
+    "e2e": "playwright test --config=../../playwright.config.ts"
   },
   "engines": {
     "node": ">=18.18"

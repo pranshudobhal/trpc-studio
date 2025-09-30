@@ -1,8 +1,6 @@
-/**
- * E2E smoke tests for tRPC Studio using Playwright
- */
-
 import { test, expect, type Page } from '@playwright/test';
+
+// Full original content retained so future Playwright enablement is trivial.
 
 // Mock data for testing
 const mockIntrospection = {
@@ -274,8 +272,6 @@ test.describe('tRPC Studio E2E', () => {
     await page.locator('[data-testid="input-name"]').fill('Test');
     await page.locator('[data-testid="execute-button"]').click();
 
-    // Verify the request was made with custom headers
-    // (This would be verified through network inspection in a real test)
     await expect(page.locator('[data-testid="response-panel"]')).toBeVisible();
   });
 
@@ -294,7 +290,7 @@ test.describe('tRPC Studio E2E', () => {
     // Should show success message
     await expect(page.locator('text=Copied to clipboard')).toBeVisible();
 
-    // Verify clipboard content (if supported by test environment)
+    // Verify clipboard content
     const clipboardText = await page.evaluate(() =>
       navigator.clipboard.readText()
     );
@@ -336,15 +332,10 @@ test.describe('tRPC Studio E2E', () => {
     await expect(page.locator('text=BigInt')).toBeVisible();
   });
 
-  test('should test security matrix: prod disabled → 404; enabled+bad token → 403; enabled+good token → 200', async ({
-    page,
-  }) => {
+  test('should test security matrix', async ({ page }) => {
     // Test production disabled (404)
     await page.route('**/api/__trpc-studio__/introspection', async route => {
-      await route.fulfill({
-        status: 404,
-        body: 'Not Found',
-      });
+      await route.fulfill({ status: 404, body: 'Not Found' });
     });
 
     await page.goto('/trpc-studio');
@@ -352,10 +343,7 @@ test.describe('tRPC Studio E2E', () => {
 
     // Test enabled with bad token (403)
     await page.route('**/api/__trpc-studio__/introspection', async route => {
-      await route.fulfill({
-        status: 403,
-        body: 'Unauthorized',
-      });
+      await route.fulfill({ status: 403, body: 'Unauthorized' });
     });
 
     await page.reload();
@@ -403,18 +391,18 @@ test.describe('tRPC Studio E2E', () => {
     // Wait for content to load
     await expect(page.locator('[data-testid="studio-app"]')).toBeVisible();
 
-    // Run axe accessibility tests on main page
-    const mainPageResults = await page.evaluate(() => {
-      return new Promise(resolve => {
-        // @ts-ignore - axe is loaded via CDN in test environment
-        axe.run(document, (err: any, results: any) => {
-          if (err) throw err;
-          resolve(results);
-        });
-      });
-    });
+    // Run axe accessibility tests on main page (axe injected separately in test env)
+    const mainPageResults: any = await page.evaluate(
+      () =>
+        new Promise(resolve => {
+          // @ts-ignore
+          axe.run(document, (err: any, results: any) => {
+            if (err) throw err;
+            resolve(results);
+          });
+        })
+    );
 
-    // @ts-ignore
     const mainViolations = mainPageResults.violations.filter(
       (v: any) => v.impact === 'serious' || v.impact === 'critical'
     );
@@ -426,17 +414,17 @@ test.describe('tRPC Studio E2E', () => {
       page.locator('[data-testid="procedure-details"]')
     ).toBeVisible();
 
-    const procedurePageResults = await page.evaluate(() => {
-      return new Promise(resolve => {
-        // @ts-ignore
-        axe.run(document, (err: any, results: any) => {
-          if (err) throw err;
-          resolve(results);
-        });
-      });
-    });
+    const procedurePageResults: any = await page.evaluate(
+      () =>
+        new Promise(resolve => {
+          // @ts-ignore
+          axe.run(document, (err: any, results: any) => {
+            if (err) throw err;
+            resolve(results);
+          });
+        })
+    );
 
-    // @ts-ignore
     const procedureViolations = procedurePageResults.violations.filter(
       (v: any) => v.impact === 'serious' || v.impact === 'critical'
     );

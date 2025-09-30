@@ -157,17 +157,28 @@ export class EnvironmentManager {
     // Build headers map to avoid duplicates
     const headersMap = new Map<string, string>();
 
-    // Add default Content-Type
-    headersMap.set('content-type', 'application/json');
+    // Add default Content-Type (canonical key)
+    headersMap.set('Content-Type', 'application/json');
 
-    // Add environment headers (case-insensitive merge)
+    // Helper to canonicalize header names (simple title-case for common patterns)
+    const canonicalizeHeader = (raw: string): string => {
+      return raw
+        .split('-')
+        .filter(Boolean)
+        .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+        .join('-');
+    };
+
+    // Add environment headers (case-insensitive merge) with canonical keys
     Object.entries(environment.headers).forEach(([key, value]) => {
-      headersMap.set(key.toLowerCase(), value);
+      headersMap.set(canonicalizeHeader(key), value);
     });
 
-    // Convert to sorted array
+    // Convert to sorted array (case-insensitive sort)
     const headers = Array.from(headersMap.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([a], [b]) =>
+        a.localeCompare(b, undefined, { sensitivity: 'base' })
+      )
       .map(([key, value]) => `-H "${key}: ${escapeHeaderValue(value)}"`);
 
     const parts = [`curl -X ${method}`];
